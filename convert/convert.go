@@ -823,71 +823,158 @@ var re = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|
 	`(\w{3} \d{1,2},? \d{4} \d{2}:\d{2}(:\d{2})? [AP]M)|` +
 	`(\d{4}-\d{2}-\d{2})$`)
 
-func Compare(a, b any) int {
-	switch a := a.(type) {
-	case int:
-		ai := a
-		bi := b.(int)
+func Compare[T any](a T, b any) int {
+	var as, bs any
+	var ok bool
+	var err error
+	switch a := any(a).(type) {
+	case string:
+		if IsValidDateTime(a) {
+			as, err = ParseTime(a)
+			if err != nil {
+				return 0
+			}
+			bs, ok = To(as, b)
+		}
+	default:
+		as = a
+		bs, ok = To(a, b)
+		if !ok {
+			return 0
+		}
+	}
+	switch a := as.(type) {
+	case string:
+		b := bs.(string)
+		return strings.Compare(a, b)
+	case bool:
+		return 0
+	case time.Time:
+		b := bs.(time.Time)
 		switch {
-		case ai < bi:
+		case a.Before(b):
 			return -1
-		case ai > bi:
+		case a.After(b):
 			return 1
 		default:
 			return 0
 		}
-	case string:
-		isADateTime := IsValidDateTime(a)
-		if !isADateTime {
-			switch b := b.(type) {
-			case string:
-				return strings.Compare(a, b)
-			default:
-				return strings.Compare(a, fmt.Sprint(b))
-			}
-		}
-		at, err := ParseTime(a)
-		if err != nil {
-			return 0
-		}
-		switch b := b.(type) {
-		case string:
-			bt, err := ParseTime(b)
-			if err != nil {
-				return 0
-			}
-			switch {
-			case at.Before(bt):
-				return -1
-			case at.After(bt):
-				return 1
-			default:
-				return 0
-			}
-		case time.Time:
-			switch {
-			case at.Before(b):
-				return -1
-			case at.After(b):
-				return 1
-			default:
-				return 0
-			}
-		}
-		return 0
-	case time.Time:
-		at, err := ParseTime(a)
-		if err != nil {
-			return 0
-		}
-		bt, err := ParseTime(b)
-		if err != nil {
-			return 0
-		}
+	case float32:
+		b := bs.(float32)
 		switch {
-		case at.Before(bt):
+		case a < b:
 			return -1
-		case at.After(bt):
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case float64:
+		b := bs.(float64)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case uint:
+		b := bs.(uint)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case uint8:
+		b := bs.(uint8)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case uint16:
+		b := bs.(uint16)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case uint32:
+		b := bs.(uint32)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case uint64:
+		b := bs.(uint64)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case int:
+		b := bs.(int)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case int8:
+		b := bs.(int8)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case int16:
+		b := bs.(int16)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case int32:
+		b := bs.(int32)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
+			return 1
+		default:
+			return 0
+		}
+	case int64:
+		b := bs.(int64)
+		switch {
+		case a < b:
+			return -1
+		case a > b:
 			return 1
 		default:
 			return 0
