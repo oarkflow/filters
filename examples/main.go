@@ -2,12 +2,19 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/oarkflow/filters"
 )
 
 func main() {
+	q1 := `https://example.com/?Name:starts_with:Jane&CreatedAt:between:2022-06-01,2023-01-01`
+	q, _ := url.Parse(q1)
+	filter, err := filters.ParseQuery(q)
+	if err != nil {
+		panic(err)
+	}
 	// Sample data (map type)
 	mapData := []map[string]any{
 		{"Age": 25, "City": "New York", "CreatedAt": "2023-01-01 12:00:00", "Name": "John Doe"},
@@ -17,12 +24,9 @@ func main() {
 	}
 	group2 := filters.FilterGroup{
 		Operator: filters.AND,
-		Filters: []filters.Filter{
-			{Field: "CreatedAt", Operator: filters.BETWEEN, Value: []any{"2022-06-01", "2023-01-01"}},
-			{Field: "Name", Operator: filters.STARTS_WITH, Value: "Jane"},
-		},
+		Filters:  filter,
 	}
-
+	fmt.Println(filter)
 	// Apply filters to map data
 	filteredMapData, err := filters.ApplyGroup(mapData, []filters.FilterGroup{group2})
 	if err != nil {
@@ -35,6 +39,15 @@ func main() {
 		fmt.Println(item)
 	}
 
+}
+
+func structData() {
+	mapData := []map[string]any{
+		{"Age": 25, "City": "New York", "CreatedAt": "2023-01-01 12:00:00", "Name": "John Doe"},
+		{"Age": 30, "City": "Los Angeles", "CreatedAt": "2022-06-15 15:30:00", "Name": "Jane Doe"},
+		{"Age": 35, "City": "Chicago", "CreatedAt": "2021-12-25 08:45:00", "Name": "Alice Smith"},
+		{"Age": 40, "City": "Houston", "CreatedAt": "2022-11-11 20:15:00", "Name": "Bob Johnson"},
+	}
 	// Sample data (struct type)
 	type Person struct {
 		Age       int       `json:"age"`
@@ -49,7 +62,13 @@ func main() {
 		{Age: 35, City: "Chicago", CreatedAt: time.Date(2021, 12, 25, 8, 45, 0, 0, time.UTC), Name: "Alice Smith"},
 		{Age: 40, City: "Houston", CreatedAt: time.Date(2022, 11, 11, 20, 15, 0, 0, time.UTC), Name: "Bob Johnson"},
 	}
-
+	group2 := filters.FilterGroup{
+		Operator: filters.AND,
+		Filters: []filters.Filter{
+			{Field: "CreatedAt", Operator: filters.BETWEEN, Value: []any{"2022-06-01", "2023-01-01"}},
+			{Field: "Name", Operator: filters.STARTS_WITH, Value: "Jane"},
+		},
+	}
 	// Apply filters to struct data
 	filteredStructData, err := filters.ApplyGroup(structData, []filters.FilterGroup{group2})
 	if err != nil {
@@ -78,7 +97,7 @@ func main() {
 	}
 
 	// Apply filters to map data using binary expression
-	filteredMapData, err = filters.ApplyBinaryFilter(mapData, binaryExpr)
+	filteredMapData, err := filters.ApplyBinaryFilter(mapData, binaryExpr)
 	if err != nil {
 		fmt.Println("Error applying filters:", err)
 		return

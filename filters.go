@@ -3,8 +3,11 @@ package filters
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/oarkflow/filters/utils"
 )
@@ -287,17 +290,112 @@ func Match[T any](item T, filter Filter) bool {
 	case ENDS_WITH:
 		return strings.HasSuffix(val.(string), filter.Value.(string))
 	case IN:
-		values := filter.Value.([]any)
-		for _, v := range values {
-			if reflect.DeepEqual(val, v) {
-				return true
+		switch vt := filter.Value.(type) {
+		case []string:
+			for _, v := range vt {
+				if reflect.DeepEqual(val, v) {
+					return true
+				}
+			}
+		case []any:
+			for _, v := range vt {
+				if reflect.DeepEqual(val, v) {
+					return true
+				}
 			}
 		}
 		return false
 	case BETWEEN:
-		values := filter.Value.([]any)
-		return utils.Compare(val, values[0]) >= 0 && utils.Compare(val, values[1]) <= 0
+		switch values := filter.Value.(type) {
+		case []string:
+			return utils.Compare(val, values[0]) >= 0 && utils.Compare(val, values[1]) <= 0
+		case []any:
+			return utils.Compare(val, values[0]) >= 0 && utils.Compare(val, values[1]) <= 0
+		}
+		return false
 	default:
 		return false
 	}
+}
+
+// Converts string to appropriate type (int, float, time, or string)
+func convertValue(value string) (any, error) {
+	if i, err := strconv.Atoi(value); err == nil {
+		return i, nil
+	}
+	if f, err := strconv.ParseFloat(value, 64); err == nil {
+		return f, nil
+	}
+	if t, err := time.Parse(time.RFC3339, value); err == nil {
+		return t, nil
+	}
+	return value, nil
+}
+
+func New(field string, operator Operator, value any) Filter {
+	return Filter{
+		Field:    field,
+		Operator: operator,
+		Value:    value,
+	}
+}
+
+// ParseQuery parses the query string and returns Filter or Query.
+func ParseQuery(url *url.URL) ([]Filter, error) {
+	queryParams := url.Query()
+	var filters []Filter
+
+	for key, values := range queryParams {
+		if strings.Contains(key, ":") {
+			parts := strings.Split(key, ":")
+			if len(parts) == 2 {
+				filters = append(filters, New(parts[0], EQUAL, parts[1]))
+			} else if len(parts) == 3 {
+				// Handle complex field:operator:value
+				field := parts[0]
+				operator := parts[1]
+				opValue := parts[2]
+				if _, exists := validOperators[Operator(strings.ToLower(operator))]; !exists {
+					return nil, errors.New("invalid operator")
+				}
+				// For between operator, split values into two parts
+				var val any
+				if strings.Contains(opValue, ",") {
+					betweenParts := strings.Split(opValue, ",")
+					if Operator(operator) == BETWEEN && len(betweenParts) != 2 {
+						return nil, errors.New("operator must have at least two values")
+					}
+					if Operator(operator) == IN && len(betweenParts) < 1 {
+						return nil, errors.New("operator must have at least two values")
+					}
+					for i, p := range betweenParts {
+						p = strings.TrimSpace(p)
+						betweenParts[i] = p
+					}
+
+					val = betweenParts
+				} else {
+					val = opValue
+				}
+				filters = append(filters, New(field, Operator(operator), val))
+			}
+		} else {
+			if len(values) == 1 {
+				filters = append(filters, New(key, EQUAL, values[0]))
+			} else if len(values) > 1 {
+				filters = append(filters, New(key, IN, values))
+			}
+		}
+	}
+	return filters, nil
+}
+
+// Helper function to remove a filter from a slice of filters
+func removeFilter(filters []Filter, filterToRemove Filter) []Filter {
+	for i, filter := range filters {
+		if filter.Field == filterToRemove.Field && filter.Operator == filterToRemove.Operator && reflect.DeepEqual(filter.Value, filterToRemove.Value) {
+			return append(filters[:i], filters[i+1:]...)
+		}
+	}
+	return filters
 }
