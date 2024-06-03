@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
-	q1 := `https://example.com/?Name:starts_with:Jane&CreatedAt:between:2022-06-01,2023-01-01`
-	q, _ := url.Parse(q1)
+	q1 := `Name:starts_with:Jane&CreatedAt:between:2022-06-01,2023-01-01`
+	q, _ := url.ParseQuery(q1)
 	filter, err := filters.ParseQuery(q)
 	if err != nil {
 		panic(err)
