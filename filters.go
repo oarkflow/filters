@@ -15,34 +15,39 @@ import (
 type Operator string
 
 const (
-	EQUAL              Operator = "eq"
-	LESS_THAN          Operator = "lt"
-	LESS_THAN_EQUAL    Operator = "le"
-	GREATER_THAN       Operator = "gt"
-	GREATER_THAN_EQUAL Operator = "ge"
-	NOT_EQUAL          Operator = "ne"
-	CONTAINS           Operator = "contains"
-	NOT_CONTAINS       Operator = "not_contains"
-	BETWEEN            Operator = "between"
-	IN                 Operator = "in"
-	STARTS_WITH        Operator = "starts_with"
-	ENDS_WITH          Operator = "ends_with"
+	Equal            Operator = "eq"
+	LessThan         Operator = "lt"
+	LessThanEqual    Operator = "le"
+	GreaterThan      Operator = "gt"
+	GreaterThanEqual Operator = "ge"
+	NotEqual         Operator = "ne"
+	Contains         Operator = "contains"
+	NotContains      Operator = "not_contains"
+	Between          Operator = "between"
+	In               Operator = "in"
+	StartsWith       Operator = "starts_with"
+	EndsWith         Operator = "ends_with"
+	NotIn            Operator = "not_in"
+	NotZero          Operator = "not_zero"
+	IsZero           Operator = "is_zero"
+	IsNull           Operator = "is_null"
+	NotNull          Operator = "not_null"
 )
 
 var (
 	validOperators = map[Operator]struct{}{
-		EQUAL:              {},
-		LESS_THAN:          {},
-		LESS_THAN_EQUAL:    {},
-		GREATER_THAN:       {},
-		GREATER_THAN_EQUAL: {},
-		NOT_EQUAL:          {},
-		CONTAINS:           {},
-		NOT_CONTAINS:       {},
-		BETWEEN:            {},
-		IN:                 {},
-		STARTS_WITH:        {},
-		ENDS_WITH:          {},
+		Equal:            {},
+		LessThan:         {},
+		LessThanEqual:    {},
+		GreaterThan:      {},
+		GreaterThanEqual: {},
+		NotEqual:         {},
+		Contains:         {},
+		NotContains:      {},
+		Between:          {},
+		In:               {},
+		StartsWith:       {},
+		EndsWith:         {},
 	}
 )
 
@@ -95,12 +100,12 @@ func ValidateFilters(filters ...Filter) error {
 		if _, exists := validOperators[filter.Operator]; !exists {
 			return fmt.Errorf("invalid operator: %s", filter.Operator)
 		}
-		if filter.Operator == BETWEEN {
+		if filter.Operator == Between {
 			if reflect.TypeOf(filter.Value).Kind() != reflect.Slice || reflect.ValueOf(filter.Value).Len() != 2 {
 				return errors.New("between filter must have a slice of two elements as value")
 			}
 		}
-		if filter.Operator == IN {
+		if filter.Operator == In {
 			if reflect.TypeOf(filter.Value).Kind() != reflect.Slice {
 				return errors.New("in filter must have a slice as value")
 			}
@@ -143,29 +148,29 @@ func ApplyBinaryFilter[T any](data []T, expr BinaryExpr[T]) ([]T, error) {
 
 func filterToQuery(filter Filter) any {
 	switch filter.Operator {
-	case EQUAL:
+	case Equal:
 		return TermQuery{Term: map[string]any{filter.Field: filter.Value}}
-	case LESS_THAN:
+	case LessThan:
 		return RangeQuery{Range: map[string]map[string]any{filter.Field: {"lt": filter.Value}}}
-	case LESS_THAN_EQUAL:
+	case LessThanEqual:
 		return RangeQuery{Range: map[string]map[string]any{filter.Field: {"le": filter.Value}}}
-	case GREATER_THAN:
+	case GreaterThan:
 		return RangeQuery{Range: map[string]map[string]any{filter.Field: {"gt": filter.Value}}}
-	case GREATER_THAN_EQUAL:
+	case GreaterThanEqual:
 		return RangeQuery{Range: map[string]map[string]any{filter.Field: {"ge": filter.Value}}}
-	case NOT_EQUAL:
+	case NotEqual:
 		return BoolQuery{Must: []any{TermQuery{Term: map[string]any{filter.Field: map[string]any{"ne": filter.Value}}}}}
-	case CONTAINS:
+	case Contains:
 		return WildcardQuery{Wildcard: map[string]string{filter.Field: fmt.Sprintf("*%v*", filter.Value)}}
-	case NOT_CONTAINS:
+	case NotContains:
 		return BoolQuery{Must: []any{WildcardQuery{Wildcard: map[string]string{filter.Field: fmt.Sprintf("!*%v*", filter.Value)}}}}
-	case STARTS_WITH:
+	case StartsWith:
 		return WildcardQuery{Wildcard: map[string]string{filter.Field: fmt.Sprintf("%v*", filter.Value)}}
-	case ENDS_WITH:
+	case EndsWith:
 		return WildcardQuery{Wildcard: map[string]string{filter.Field: fmt.Sprintf("*%v", filter.Value)}}
-	case IN:
+	case In:
 		return TermQuery{Term: map[string]any{filter.Field: map[string]any{"in": filter.Value}}}
-	case BETWEEN:
+	case Between:
 		values, ok := filter.Value.([]any)
 		if !ok || len(values) != 2 {
 			return nil
@@ -267,55 +272,43 @@ func Match[T any](item T, filter Filter) bool {
 	if val == nil {
 		return false
 	}
-
 	switch filter.Operator {
-	case EQUAL:
-		return reflect.DeepEqual(val, filter.Value)
-	case LESS_THAN:
-		return utils.Compare(val, filter.Value) < 0
-	case LESS_THAN_EQUAL:
-		return utils.Compare(val, filter.Value) <= 0
-	case GREATER_THAN:
-		return utils.Compare(val, filter.Value) > 0
-	case GREATER_THAN_EQUAL:
-		return utils.Compare(val, filter.Value) >= 0
-	case NOT_EQUAL:
-		return !reflect.DeepEqual(val, filter.Value)
-	case CONTAINS:
-		return strings.Contains(val.(string), filter.Value.(string))
-	case NOT_CONTAINS:
-		return !strings.Contains(val.(string), filter.Value.(string))
-	case STARTS_WITH:
-		return strings.HasPrefix(val.(string), filter.Value.(string))
-	case ENDS_WITH:
-		return strings.HasSuffix(val.(string), filter.Value.(string))
-	case IN:
-		switch vt := filter.Value.(type) {
-		case []string:
-			for _, v := range vt {
-				if reflect.DeepEqual(val, v) {
-					return true
-				}
-			}
-		case []any:
-			for _, v := range vt {
-				if reflect.DeepEqual(val, v) {
-					return true
-				}
-			}
-		}
-		return false
-	case BETWEEN:
-		switch values := filter.Value.(type) {
-		case []string:
-			return utils.Compare(val, values[0]) >= 0 && utils.Compare(val, values[1]) <= 0
-		case []any:
-			return utils.Compare(val, values[0]) >= 0 && utils.Compare(val, values[1]) <= 0
-		}
-		return false
-	default:
-		return false
+	case Equal:
+		return checkEq(val, filter)
+	case NotEqual:
+		return checkNeq(val, filter)
+	case GreaterThan:
+		return checkGt(val, filter)
+	case LessThan:
+		return checkLt(val, filter)
+	case GreaterThanEqual:
+		return checkGte(val, filter)
+	case LessThanEqual:
+		return checkLte(val, filter)
+	case Between:
+		return checkBetween(val, filter)
+	case In:
+		return checkIn(val, filter)
+	case NotIn:
+		return checkNotIn(val, filter)
+	case Contains:
+		return checkContains(val, filter)
+	case NotContains:
+		return checkNotContains(val, filter)
+	case StartsWith:
+		return checkStartsWith(val, filter)
+	case EndsWith:
+		return checkEndsWith(val, filter)
+	case IsZero:
+		return reflect.ValueOf(val).IsZero()
+	case NotZero:
+		return !fieldValue.IsZero()
+	case IsNull:
+		return fieldValue.IsNil()
+	case NotNull:
+		return !fieldValue.IsNil()
 	}
+	return false
 }
 
 // Converts string to appropriate type (int, float, time, or string)
@@ -352,7 +345,7 @@ func ParseQuery(queryString string) ([]Filter, error) {
 		if strings.Contains(key, ":") {
 			parts := strings.Split(key, ":")
 			if len(parts) == 2 {
-				filters = append(filters, New(parts[0], EQUAL, parts[1]))
+				filters = append(filters, New(parts[0], Equal, parts[1]))
 			} else if len(parts) == 3 {
 				// Handle complex field:operator:value
 				field := parts[0]
@@ -365,10 +358,10 @@ func ParseQuery(queryString string) ([]Filter, error) {
 				var val any
 				if strings.Contains(opValue, ",") {
 					betweenParts := strings.Split(opValue, ",")
-					if Operator(operator) == BETWEEN && len(betweenParts) != 2 {
+					if Operator(operator) == Between && len(betweenParts) != 2 {
 						return nil, errors.New("operator must have at least two values")
 					}
-					if Operator(operator) == IN && len(betweenParts) < 1 {
+					if Operator(operator) == In && len(betweenParts) < 1 {
 						return nil, errors.New("operator must have at least two values")
 					}
 					for i, p := range betweenParts {
@@ -384,9 +377,9 @@ func ParseQuery(queryString string) ([]Filter, error) {
 			}
 		} else {
 			if len(values) == 1 {
-				filters = append(filters, New(key, EQUAL, values[0]))
+				filters = append(filters, New(key, Equal, values[0]))
 			} else if len(values) > 1 {
-				filters = append(filters, New(key, IN, values))
+				filters = append(filters, New(key, In, values))
 			}
 		}
 	}

@@ -173,3 +173,55 @@ func Serialize[T any](item T) string {
 
 	return builder.String()
 }
+
+// SearchDeeplyNestedSlice searches for a target slice in a nested slice.
+// It returns true if any of the target slice elements are found in the nested slice
+// or in any of its nested slices. Otherwise, it returns false.
+func SearchDeeplyNestedSlice(nestedSlice []interface{}, targetSlice []interface{}) bool {
+	targetMap := make(map[interface{}]struct{})
+	for _, target := range targetSlice {
+		targetMap[target] = struct{}{}
+	}
+
+	for _, element := range nestedSlice {
+		switch v := element.(type) {
+		case []interface{}:
+			if SearchDeeplyNestedSlice(v, targetSlice) {
+				return true
+			}
+		default:
+			if _, found := targetMap[v]; found {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// FlattenSlice flattens a nested slice into a single slice.
+func FlattenSlice(slice []interface{}) []interface{} {
+	var result []interface{}
+	for _, element := range slice {
+		switch element := element.(type) {
+		case []interface{}:
+			result = append(result, FlattenSlice(element)...)
+		default:
+			result = append(result, element)
+		}
+	}
+	return result
+}
+
+// SumIntSlice sums up all the elements in a slice and returns the result.
+func SumIntSlice(slice []any) int {
+	var sum int
+	for _, element := range slice {
+		switch element := element.(type) {
+		case int:
+			sum += element
+		case float64:
+			sum += int(element)
+		}
+	}
+	return sum
+}

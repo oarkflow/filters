@@ -62,8 +62,8 @@ func structData() {
 	group2 := filters.FilterGroup{
 		Operator: filters.AND,
 		Filters: []filters.Filter{
-			{Field: "CreatedAt", Operator: filters.BETWEEN, Value: []any{"2022-06-01", "2023-01-01"}},
-			{Field: "Name", Operator: filters.STARTS_WITH, Value: "Jane"},
+			{Field: "CreatedAt", Operator: filters.Between, Value: []any{"2022-06-01", "2023-01-01"}},
+			{Field: "Name", Operator: filters.StartsWith, Value: "Jane"},
 		},
 	}
 	// Apply filters to struct data
@@ -82,8 +82,8 @@ func structData() {
 	group1 := filters.FilterGroup{
 		Operator: filters.AND,
 		Filters: []filters.Filter{
-			{Field: "Age", Operator: filters.GREATER_THAN, Value: 27},
-			{Field: "City", Operator: filters.CONTAINS, Value: "Hous"},
+			{Field: "Age", Operator: filters.GreaterThan, Value: 27},
+			{Field: "City", Operator: filters.Contains, Value: "Hous"},
 		},
 	}
 	// Create a binary expression
