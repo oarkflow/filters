@@ -341,7 +341,11 @@ func New(field string, operator Operator, value any) Filter {
 }
 
 // ParseQuery parses the query string and returns Filter or Query.
-func ParseQuery(queryParams url.Values) ([]Filter, error) {
+func ParseQuery(queryString string) ([]Filter, error) {
+	queryParams, err := url.ParseQuery(queryString)
+	if err != nil {
+		return nil, err
+	}
 	var filters []Filter
 
 	for key, values := range queryParams {

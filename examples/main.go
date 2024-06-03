@@ -2,16 +2,13 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/oarkflow/filters"
 )
 
 func main() {
-	q1 := `Name:starts_with:Jane&CreatedAt:between:2022-06-01,2023-01-01`
-	q, _ := url.ParseQuery(q1)
-	filter, err := filters.ParseQuery(q)
+	filter, err := filters.ParseQuery(`Name:starts_with:Jane&CreatedAt:between:2022-06-01,2023-01-01`)
 	if err != nil {
 		panic(err)
 	}
