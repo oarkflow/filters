@@ -342,7 +342,7 @@ func New(field string, operator Operator, value any) Filter {
 
 // ParseQuery parses the query string and returns Filter or Query.
 func ParseQuery(queryString string) ([]Filter, error) {
-	queryParams, err := url.ParseQuery(queryString)
+	queryParams, err := url.ParseQuery(strings.TrimPrefix(queryString, "?"))
 	if err != nil {
 		return nil, err
 	}

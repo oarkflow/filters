@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	filter, err := filters.ParseQuery(`Name:starts_with:Jane&CreatedAt:between:2022-06-01,2023-01-01`)
+	filter, err := filters.ParseQuery(`?Name:starts_with:Jane&CreatedAt:between:2022-06-01,2023-01-01`)
 	if err != nil {
 		panic(err)
 	}
