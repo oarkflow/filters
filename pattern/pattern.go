@@ -2,6 +2,7 @@ package pattern
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/oarkflow/filters"
 )
@@ -20,6 +21,14 @@ type (
 		Error  error
 		values map[string]any
 		cases  []Case[T]
+	}
+)
+
+var (
+	filterPool = sync.Pool{
+		New: func() any {
+			return make([]filters.Filter, 0, 10)
+		},
 	}
 )
 
@@ -44,7 +53,11 @@ func (p *Case[T]) match(values map[string]any) *Case[T] {
 		p.err = InvalidHandler
 		return p
 	}
-	var rules []filters.Filter
+
+	// Get a slice from the pool
+	rules := filterPool.Get().([]filters.Filter)
+	// Reset the slice length without reallocating
+	rules = rules[:0]
 
 	for i, match := range p.args {
 		field := "f_" + strconv.Itoa(i+1)
@@ -96,6 +109,10 @@ func (p *Case[T]) match(values map[string]any) *Case[T] {
 		Filters:  rules,
 	}
 	response := filters.MatchGroup(values, group2)
+
+	// Put the slice back into the pool
+	filterPool.Put(rules)
+
 	if response {
 		p.matchFound = true
 		result, err := p.handler(p.args...)
@@ -138,7 +155,7 @@ func Match[T any](values ...any) *Matcher[T] {
 			Error: NoValueError,
 		}
 	}
-	mp := make(map[string]any)
+	mp := make(map[string]any, len(values))
 	for i, v := range values {
 		mp["f_"+strconv.Itoa(i+1)] = v
 	}
