@@ -3,6 +3,8 @@ package pattern
 import (
 	"strconv"
 
+	"github.com/oarkflow/xid"
+
 	"github.com/oarkflow/filters"
 )
 
@@ -19,7 +21,7 @@ type (
 	Matcher[T any] struct {
 		Error  error
 		values map[string]any
-		cases  []Case[T]
+		cases  map[xid.ID]Case[T]
 	}
 )
 
@@ -135,6 +137,7 @@ func Match[T any](values ...any) *Matcher[T] {
 	if len(values) == 0 {
 		return &Matcher[T]{
 			Error: NoValueError,
+			cases: make(map[xid.ID]Case[T], 2),
 		}
 	}
 	mp := make(map[string]any, len(values))
@@ -142,7 +145,7 @@ func Match[T any](values ...any) *Matcher[T] {
 		mp["f_"+strconv.Itoa(i+1)] = v
 	}
 
-	return &Matcher[T]{values: mp}
+	return &Matcher[T]{values: mp, cases: make(map[xid.ID]Case[T], 2)}
 }
 
 func (p *Matcher[T]) Case(handler Handler[T], matches ...any) *Matcher[T] {
@@ -162,11 +165,11 @@ func (p *Matcher[T]) addCase(handler Handler[T], defaultCase bool, args ...any) 
 	if p.Error != nil {
 		return p
 	}
-	p.cases = append(p.cases, Case[T]{
+	p.cases[xid.New()] = Case[T]{
 		handler:     handler,
 		defaultCase: defaultCase,
 		args:        args,
-	})
+	}
 	return p
 }
 
