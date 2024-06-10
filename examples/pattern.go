@@ -13,7 +13,7 @@ func main() {
 		Case(func(args ...any) (int, error) {
 			fmt.Println(args)
 			return 5, nil
-		}, pattern.NONE, 15).
+		}, pattern.NONE, pattern.ANY).
 		Default(func(args ...any) (int, error) {
 			fmt.Println(args)
 			return 2, nil

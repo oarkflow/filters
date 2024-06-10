@@ -2,7 +2,6 @@ package pattern
 
 import (
 	"strconv"
-	"sync"
 
 	"github.com/oarkflow/filters"
 )
@@ -21,14 +20,6 @@ type (
 		Error  error
 		values map[string]any
 		cases  []Case[T]
-	}
-)
-
-var (
-	filterPool = sync.Pool{
-		New: func() any {
-			return make([]filters.Filter, 0, 10)
-		},
 	}
 )
 
@@ -54,74 +45,65 @@ func (p *Case[T]) match(values map[string]any) *Case[T] {
 		return p
 	}
 
-	// Get a slice from the pool
-	rules := filterPool.Get().([]filters.Filter)
-	// Reset the slice length without reallocating
-	rules = rules[:0]
-
 	for i, match := range p.args {
 		field := "f_" + strconv.Itoa(i+1)
 		switch match := match.(type) {
 		case string:
 			switch match {
 			case EXISTS:
-				rules = append(rules, filters.Filter{
+				if !filters.Match(values, filters.Filter{
 					Field:    field,
 					Operator: filters.NotZero,
 					Value:    "",
-				})
+				}) {
+					return p
+				}
 			case NOTEXISTS:
-				rules = append(rules, filters.Filter{
+				if !filters.Match(values, filters.Filter{
 					Field:    field,
 					Operator: filters.IsZero,
 					Value:    "",
-				})
+				}) {
+					return p
+				}
 			case NONE:
-				rules = append(rules, filters.Filter{
+				filter := filters.Filter{
 					Field:    field,
 					Operator: filters.IsNull,
-				})
+				}
+				if !filters.Match(values, filter) {
+					return p
+				}
 			case ANY:
-				rules = append(rules, filters.Filter{
-					Field:    field,
-					Operator: filters.Equal,
-					Value:    match,
-				})
+
 			default:
-				rules = append(rules, filters.Filter{
+				filter := filters.Filter{
 					Field:    field,
 					Operator: filters.Equal,
 					Value:    match,
-				})
+				}
+				if !filters.Match(values, filter) {
+					return p
+				}
 			}
-		case filters.Filter:
-			rules = append(rules, match)
 		default:
-			rules = append(rules, filters.Filter{
+			filter := filters.Filter{
 				Field:    field,
 				Operator: filters.Equal,
 				Value:    match,
-			})
+			}
+			if !filters.Match(values, filter) {
+				return p
+			}
 		}
 	}
-	group2 := filters.FilterGroup{
-		Operator: filters.AND,
-		Filters:  rules,
+	p.matchFound = true
+	result, err := p.handler(p.args...)
+	if err != nil {
+		p.err = err
+		return p
 	}
-	response := filters.MatchGroup(values, group2)
-
-	// Put the slice back into the pool
-	filterPool.Put(rules)
-
-	if response {
-		p.matchFound = true
-		result, err := p.handler(p.args...)
-		if err != nil {
-			p.err = err
-			return p
-		}
-		p.result = result
-	}
+	p.result = result
 	return p
 }
 
