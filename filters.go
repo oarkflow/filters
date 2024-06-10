@@ -126,12 +126,12 @@ func ApplyBinaryFilter[T any](data []T, expr BinaryExpr[T]) ([]T, error) {
 		return nil, errors.New("missing left or right filter group")
 	}
 
-	leftResult, err := ApplyGroup(data, []FilterGroup{*expr.Left})
+	leftResult, err := ApplyGroup(data, *expr.Left)
 	if err != nil {
 		return nil, err
 	}
 
-	rightResult, err := ApplyGroup(data, []FilterGroup{*expr.Right})
+	rightResult, err := ApplyGroup(data, *expr.Right)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func filtersToQuery(filters []Filter) (Query, error) {
 	}, nil
 }
 
-func ApplyGroup[T any](data []T, filterGroups []FilterGroup) ([]T, error) {
+func ApplyGroup[T any](data []T, filterGroups ...FilterGroup) ([]T, error) {
 	var result []T
 	for _, item := range data {
 		matches := true

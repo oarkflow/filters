@@ -25,7 +25,7 @@ func main() {
 	}
 	fmt.Println(filter)
 	// Apply filters to map data
-	filteredMapData, err := filters.ApplyGroup(mapData, []filters.FilterGroup{group2})
+	filteredMapData, err := filters.ApplyGroup(mapData, group2)
 	if err != nil {
 		fmt.Println("Error applying filters:", err)
 	}
@@ -67,7 +67,7 @@ func structData() {
 		},
 	}
 	// Apply filters to struct data
-	filteredStructData, err := filters.ApplyGroup(structData, []filters.FilterGroup{group2})
+	filteredStructData, err := filters.ApplyGroup(structData, group2)
 	if err != nil {
 		fmt.Println("Error applying filters:", err)
 		return
