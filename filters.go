@@ -268,10 +268,6 @@ func Match[T any](item T, filter Filter) bool {
 		}
 		val = fieldValue.Interface()
 	}
-
-	if val == nil {
-		return false
-	}
 	switch filter.Operator {
 	case Equal:
 		return checkEq(val, filter)

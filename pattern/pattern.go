@@ -1,28 +1,29 @@
 package pattern
 
 import (
-	"fmt"
-
-	"github.com/oarkflow/xid"
+	"strconv"
 
 	"github.com/oarkflow/filters"
 )
 
-var randomField = fmt.Sprintf("field_%s_", xid.New().String())
-
 type (
-	Handler func(args ...any) (any, error)
-	Case    struct {
-		handler     Handler
+	Handler[T any] func(args ...any) (T, error)
+	Case[T any]    struct {
+		handler     Handler[T]
 		args        []any
 		defaultCase bool
 		matchFound  bool
 		err         error
-		result      any
+		result      T
+	}
+	Matcher[T any] struct {
+		Error  error
+		values map[string]any
+		cases  []Case[T]
 	}
 )
 
-func (p *Case) match(values map[string]any) *Case {
+func (p *Case[T]) match(values map[string]any) *Case[T] {
 	if p == nil {
 		return nil
 	}
@@ -46,28 +47,42 @@ func (p *Case) match(values map[string]any) *Case {
 	var rules []filters.Filter
 
 	for i, match := range p.args {
-		field := fmt.Sprintf("%s%d", randomField, i+1)
+		field := "f_" + strconv.Itoa(i+1)
 		switch match := match.(type) {
 		case string:
-			if match == EXISTS {
+			switch match {
+			case EXISTS:
 				rules = append(rules, filters.Filter{
 					Field:    field,
 					Operator: filters.NotZero,
 					Value:    "",
 				})
-			} else if match == NOTEXISTS {
+			case NOTEXISTS:
 				rules = append(rules, filters.Filter{
 					Field:    field,
 					Operator: filters.IsZero,
 					Value:    "",
 				})
-			} else if match != ANY {
+			case NONE:
+				rules = append(rules, filters.Filter{
+					Field:    field,
+					Operator: filters.IsNull,
+				})
+			case ANY:
+				rules = append(rules, filters.Filter{
+					Field:    field,
+					Operator: filters.Equal,
+					Value:    match,
+				})
+			default:
 				rules = append(rules, filters.Filter{
 					Field:    field,
 					Operator: filters.Equal,
 					Value:    match,
 				})
 			}
+		case filters.Filter:
+			rules = append(rules, match)
 		default:
 			rules = append(rules, filters.Filter{
 				Field:    field,
@@ -93,7 +108,7 @@ func (p *Case) match(values map[string]any) *Case {
 	return p
 }
 
-func (p *Case) matcherDefault() *Case {
+func (p *Case[T]) matcherDefault() *Case[T] {
 	if p == nil {
 		return nil
 	}
@@ -110,12 +125,6 @@ func (p *Case) matcherDefault() *Case {
 	return p
 }
 
-type Matcher struct {
-	Error  error
-	values map[string]any
-	cases  []Case
-}
-
 const (
 	ANY       = "ANY-VAL"
 	NONE      = "NONE-VAL"
@@ -123,38 +132,38 @@ const (
 	NOTEXISTS = "NOT-EXISTS-VAL"
 )
 
-func Match(values ...any) *Matcher {
+func Match[T any](values ...any) *Matcher[T] {
 	if len(values) == 0 {
-		return &Matcher{
+		return &Matcher[T]{
 			Error: NoValueError,
 		}
 	}
 	mp := make(map[string]any)
 	for i, v := range values {
-		mp[fmt.Sprintf("%s%d", randomField, i+1)] = v
+		mp["f_"+strconv.Itoa(i+1)] = v
 	}
 
-	return &Matcher{values: mp}
+	return &Matcher[T]{values: mp}
 }
 
-func (p *Matcher) Case(handler Handler, matches ...any) *Matcher {
+func (p *Matcher[T]) Case(handler Handler[T], matches ...any) *Matcher[T] {
 	p.addCase(handler, false, matches...)
 	return p
 }
 
-func (p *Matcher) Default(handler Handler) *Matcher {
+func (p *Matcher[T]) Default(handler Handler[T]) *Matcher[T] {
 	p.addCase(handler, true)
 	return p
 }
 
-func (p *Matcher) addCase(handler Handler, defaultCase bool, args ...any) *Matcher {
+func (p *Matcher[T]) addCase(handler Handler[T], defaultCase bool, args ...any) *Matcher[T] {
 	if p == nil {
 		return nil
 	}
 	if p.Error != nil {
 		return p
 	}
-	p.cases = append(p.cases, Case{
+	p.cases = append(p.cases, Case[T]{
 		handler:     handler,
 		defaultCase: defaultCase,
 		args:        args,
@@ -162,12 +171,13 @@ func (p *Matcher) addCase(handler Handler, defaultCase bool, args ...any) *Match
 	return p
 }
 
-func (p *Matcher) Result() (any, error) {
+func (p *Matcher[T]) Result() (T, error) {
+	var t T
 	if p == nil {
-		return nil, NoMatcherError
+		return t, NoMatcherError
 	}
 	for _, currentCase := range p.cases {
-		var matchedCase *Case
+		var matchedCase *Case[T]
 		if currentCase.defaultCase {
 			matchedCase = currentCase.matcherDefault()
 		} else {
@@ -175,10 +185,10 @@ func (p *Matcher) Result() (any, error) {
 		}
 
 		if matchedCase.err != nil {
-			return nil, matchedCase.err
+			return t, matchedCase.err
 		} else if matchedCase.matchFound {
 			return matchedCase.result, nil
 		}
 	}
-	return nil, nil
+	return t, nil
 }

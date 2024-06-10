@@ -7,15 +7,14 @@ import (
 )
 
 func main() {
-	a := 3
 	b := 15
 	result, err := pattern.
-		Match(a, b).
-		Case(func(args ...any) (any, error) {
+		Match[int](nil, b).
+		Case(func(args ...any) (int, error) {
 			fmt.Println(args)
 			return 5, nil
-		}, 3, 15).
-		Default(func(args ...any) (any, error) {
+		}, pattern.NONE, 15).
+		Default(func(args ...any) (int, error) {
 			fmt.Println(args)
 			return 2, nil
 		}).
