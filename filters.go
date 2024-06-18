@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -268,6 +269,10 @@ func Match[T any](item T, filter Filter) bool {
 		}
 		val = fieldValue.Interface()
 	}
+
+	if val == nil {
+		return false
+	}
 	switch filter.Operator {
 	case Equal:
 		return checkEq(val, filter)
@@ -330,7 +335,7 @@ func New(field string, operator Operator, value any) Filter {
 }
 
 // ParseQuery parses the query string and returns Filter or Query.
-func ParseQuery(queryString string) ([]Filter, error) {
+func ParseQuery(queryString string, exceptFields ...string) ([]Filter, error) {
 	queryParams, err := url.ParseQuery(strings.TrimPrefix(queryString, "?"))
 	if err != nil {
 		return nil, err
@@ -341,8 +346,14 @@ func ParseQuery(queryString string) ([]Filter, error) {
 		if strings.Contains(key, ":") {
 			parts := strings.Split(key, ":")
 			if len(parts) == 2 {
+				if len(exceptFields) > 0 && slices.Contains(exceptFields, parts[0]) {
+					continue
+				}
 				filters = append(filters, New(parts[0], Equal, parts[1]))
 			} else if len(parts) == 3 {
+				if len(exceptFields) > 0 && slices.Contains(exceptFields, parts[0]) {
+					continue
+				}
 				// Handle complex field:operator:value
 				field := parts[0]
 				operator := parts[1]
@@ -372,6 +383,9 @@ func ParseQuery(queryString string) ([]Filter, error) {
 				filters = append(filters, New(field, Operator(operator), val))
 			}
 		} else {
+			if len(exceptFields) > 0 && slices.Contains(exceptFields, key) {
+				continue
+			}
 			if len(values) == 1 {
 				filters = append(filters, New(key, Equal, values[0]))
 			} else if len(values) > 1 {
