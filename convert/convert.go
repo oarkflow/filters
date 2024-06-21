@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/relvacode/iso8601"
+	"github.com/oarkflow/filters/utils"
 )
 
 func To[T any](src T, dst any) (T, bool) {
@@ -325,7 +325,7 @@ func ToTime(val any) (time.Time, bool) {
 	case time.Time:
 		return v, true
 	case string:
-		t, err := iso8601.ParseString(v)
+		t, err := utils.ParseTime(v)
 		return t, err == nil
 	default:
 		return time.Time{}, false
@@ -830,7 +830,7 @@ func Compare[T any](a T, b any) int {
 	switch a := any(a).(type) {
 	case string:
 		if IsValidDateTime(a) {
-			as, err = ParseTime(a)
+			as, err = utils.ParseTime(a)
 			if err != nil {
 				return 0
 			}
@@ -986,15 +986,4 @@ func Compare[T any](a T, b any) int {
 
 func IsValidDateTime(str string) bool {
 	return re.MatchString(str)
-}
-
-func ParseTime(dt any) (time.Time, error) {
-	switch dt := dt.(type) {
-	case time.Time:
-		return dt, nil
-	case string:
-		return iso8601.ParseString(dt)
-	}
-
-	return time.Time{}, nil
 }

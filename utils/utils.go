@@ -1,14 +1,13 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/relvacode/iso8601"
 )
 
 var re = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)|` +
@@ -105,15 +104,57 @@ func IsValidDateTime(str string) bool {
 	return re.MatchString(str)
 }
 
-func ParseTime(dt any) (time.Time, error) {
-	switch dt := dt.(type) {
-	case time.Time:
-		return dt, nil
-	case string:
-		return iso8601.ParseString(dt)
+// ParseTime convert date string to time.Time
+func ParseTime(s interface{}, layouts ...string) (t time.Time, err error) {
+	var layout string
+	str := ""
+	if len(layouts) > 0 { // custom layout
+		layout = layouts[0]
+	} else {
+		switch s := s.(type) {
+		case time.Time:
+			return s, nil
+		case string:
+			str = s
+			switch len(s) {
+			case 8:
+				layout = "20060102"
+			case 10:
+				layout = "2006-01-02"
+			case 13:
+				layout = "2006-01-02 15"
+			case 16:
+				layout = "2006-01-02 15:04"
+			case 19:
+				layout = "2006-01-02 15:04:05"
+			case 20: // time.RFC3339
+				layout = "2006-01-02T15:04:05Z07:00"
+			}
+			break
+		case int:
+			return time.Unix(int64(s), 0), nil
+		case int64:
+			return time.Unix(s, 0), nil
+		}
+	}
+	if layout == "" {
+		err = errors.New("invalid params")
+		return
 	}
 
-	return time.Time{}, nil
+	// has 'T' eg: "2006-01-02T15:04:05"
+	if strings.ContainsRune(str, 'T') {
+		layout = strings.Replace(layout, " ", "T", -1)
+	}
+
+	// eg: "2006/01/02 15:04:05"
+	if strings.ContainsRune(str, '/') {
+		layout = strings.Replace(layout, "-", "/", -1)
+	}
+
+	t, err = time.Parse(layout, str)
+	// t, err = time.ParseInLocation(layout, s, time.Local)
+	return
 }
 
 func Intersection[T any](a, b []T) []T {

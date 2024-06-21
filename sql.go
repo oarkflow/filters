@@ -2,7 +2,6 @@ package filters
 
 import (
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 )
@@ -23,12 +22,24 @@ func (s *Sequence) Match(data any) bool {
 	if s.Operator == AND && !matched {
 		return false
 	}
+	if s.Next == nil {
+		return matched
+	}
 	if s.Operator == AND {
 		return matched && s.Next.Match(data)
 	} else if s.Operator == OR {
 		return matched || s.Next.Match(data)
 	}
 	return s.Next.Match(data)
+}
+
+func FilterCondition[T any](data []T, expr *Sequence) (result []T) {
+	for _, d := range data {
+		if expr.Match(d) {
+			result = append(result, d)
+		}
+	}
+	return
 }
 
 type tokenType string
@@ -214,30 +225,87 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 		return nil, "", 0, errors.New("expected field name")
 	}
 	field := tok.value
-
 	tok, ok = p.nextToken()
-	if !ok || tok.typ != tokenOperator {
-		fmt.Println(tok)
-		return nil, "", 0, errors.New("expected operator")
+	if !ok {
+		return nil, "", 0, errors.New("unexpected error1")
 	}
-	operator := mapSQLOperatorToGoOperator(tok.value)
+	switch tok.typ {
+	case tokenOperator:
+		operator := mapSQLOperatorToGoOperator(tok.value)
 
-	var value any
-	if operator != IsNull && operator != NotNull {
-		tok, ok = p.nextToken()
-		if !ok || (tok.typ != tokenValue && tok.typ != tokenIdentifier) {
-			return nil, "", 0, errors.New("expected value")
+		var value any
+		if operator != IsNull && operator != NotNull {
+			tok, ok = p.nextToken()
+			if !ok || (tok.typ != tokenValue && tok.typ != tokenIdentifier) {
+				return nil, "", 0, errors.New("expected value")
+			}
+			value = tok.value
 		}
-		value = tok.value
-	}
 
-	filter := &Filter{
-		Field:    field,
-		Operator: operator,
-		Value:    value,
-	}
+		filter := &Filter{
+			Field:    field,
+			Operator: operator,
+			Value:    value,
+		}
 
-	return filter, "", p.pos, nil
+		return filter, "", p.pos, nil
+	case tokenKeyword:
+		if tok.value == "BETWEEN" {
+			operator := mapSQLOperatorToGoOperator(tok.value)
+			tok, ok = p.nextToken()
+			if !ok || tok.typ != tokenIdentifier {
+				return nil, "", 0, errors.New("expected field name")
+			}
+			field1 := tok.value
+			tok, ok = p.nextToken()
+			if !ok || tok.value != "AND" {
+				return nil, "", 0, errors.New("expected AND Operator")
+			}
+			tok, ok = p.nextToken()
+			if !ok || tok.typ != tokenIdentifier {
+				return nil, "", 0, errors.New("expected field name")
+			}
+			field2 := tok.value
+			filter := &Filter{
+				Field:    field,
+				Operator: operator,
+				Value:    []any{field1, field2},
+			}
+
+			return filter, "", p.pos, nil
+		} else if tok.value == "LIKE" {
+			tok, ok = p.nextToken()
+			if !ok || tok.typ != tokenIdentifier {
+				return nil, "", 0, errors.New("expected field name")
+			}
+			if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
+				val := strings.ReplaceAll(tok.value, "%", "")
+				filter := &Filter{
+					Field:    field,
+					Operator: Contains,
+					Value:    val,
+				}
+				return filter, "", p.pos, nil
+			} else if strings.HasPrefix(tok.value, "%") && !strings.HasSuffix(tok.value, "%") {
+				val := strings.ReplaceAll(tok.value, "%", "")
+				filter := &Filter{
+					Field:    field,
+					Operator: StartsWith,
+					Value:    val,
+				}
+				return filter, "", p.pos, nil
+			} else if !strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
+				val := strings.ReplaceAll(tok.value, "%", "")
+				filter := &Filter{
+					Field:    field,
+					Operator: EndsWith,
+					Value:    val,
+				}
+				return filter, "", p.pos, nil
+			}
+		}
+	}
+	return nil, "", 0, errors.New("unexpected error")
 }
 
 func parseFilterGroup(tokens []token) (*Sequence, int, error) {
@@ -310,7 +378,6 @@ func FromSQL(sql string) (*Sequence, error) {
 	if len(whereTokens) == 0 {
 		return nil, errors.New("no WHERE clause found")
 	}
-	fmt.Println(whereTokens)
 	filterGroup, _, err := parseFilterGroup(whereTokens)
 	if err != nil {
 		return nil, err
