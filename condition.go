@@ -2,7 +2,6 @@ package filters
 
 import (
 	"reflect"
-	"slices"
 	"strings"
 
 	"github.com/oarkflow/expr"
@@ -198,7 +197,7 @@ func checkIn(data, value any) bool {
 	if !ok {
 		return false
 	}
-	return slices.Contains(sl, data)
+	return utils.Contains(sl, data)
 }
 
 func checkNotIn(data, value any) bool {
@@ -206,7 +205,7 @@ func checkNotIn(data, value any) bool {
 	if !ok {
 		return false
 	}
-	return !slices.Contains(sl, data)
+	return !utils.Contains(sl, data)
 }
 
 func checkContains(data, value any) bool {

@@ -1,6 +1,7 @@
 package pattern
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/oarkflow/xid"
@@ -35,15 +36,15 @@ func (p *Case[T]) match(values map[string]any) *Case[T] {
 	valueLen := len(values)
 	matchesLen := len(p.args)
 	if matchesLen == 0 || valueLen == 0 {
-		p.err = NoValueOrCaseError
+		p.err = errors.New("no values or cases to match")
 		return p
 	}
 	if matchesLen != valueLen {
-		p.err = InvalidArgumentsError
+		p.err = errors.New("cases arguments is invalid for values length")
 		return p
 	}
 	if p.handler == nil {
-		p.err = InvalidHandler
+		p.err = errors.New("case handler not provided")
 		return p
 	}
 
@@ -124,7 +125,7 @@ const (
 func Match[T any](values ...any) *Matcher[T] {
 	if len(values) == 0 {
 		return &Matcher[T]{
-			Error: NoValueError,
+			Error: errors.New("no values to match"),
 			cases: make(map[xid.ID]Case[T], 2),
 		}
 	}
@@ -164,7 +165,7 @@ func (p *Matcher[T]) addCase(handler Handler[T], defaultCase bool, args ...any) 
 func (p *Matcher[T]) Result() (T, error) {
 	var t T
 	if p == nil {
-		return t, NoMatcherError
+		return t, errors.New("no matcher provided")
 	}
 	for _, currentCase := range p.cases {
 		var matchedCase *Case[T]

@@ -105,7 +105,7 @@ func IsValidDateTime(str string) bool {
 }
 
 // ParseTime convert date string to time.Time
-func ParseTime(s interface{}, layouts ...string) (t time.Time, err error) {
+func ParseTime(s any, layouts ...string) (t time.Time, err error) {
 	var layout string
 	str := ""
 	if len(layouts) > 0 { // custom layout
@@ -218,15 +218,15 @@ func Serialize[T any](item T) string {
 // SearchDeeplyNestedSlice searches for a target slice in a nested slice.
 // It returns true if any of the target slice elements are found in the nested slice
 // or in any of its nested slices. Otherwise, it returns false.
-func SearchDeeplyNestedSlice(nestedSlice []interface{}, targetSlice []interface{}) bool {
-	targetMap := make(map[interface{}]struct{})
+func SearchDeeplyNestedSlice(nestedSlice []any, targetSlice []any) bool {
+	targetMap := make(map[any]struct{})
 	for _, target := range targetSlice {
 		targetMap[target] = struct{}{}
 	}
 
 	for _, element := range nestedSlice {
 		switch v := element.(type) {
-		case []interface{}:
+		case []any:
 			if SearchDeeplyNestedSlice(v, targetSlice) {
 				return true
 			}
@@ -240,11 +240,11 @@ func SearchDeeplyNestedSlice(nestedSlice []interface{}, targetSlice []interface{
 }
 
 // FlattenSlice flattens a nested slice into a single slice.
-func FlattenSlice(slice []interface{}) []interface{} {
-	var result []interface{}
+func FlattenSlice(slice []any) []any {
+	var result []any
 	for _, element := range slice {
 		switch element := element.(type) {
-		case []interface{}:
+		case []any:
 			result = append(result, FlattenSlice(element)...)
 		default:
 			result = append(result, element)
@@ -265,4 +265,17 @@ func SumIntSlice(slice []any) int {
 		}
 	}
 	return sum
+}
+
+func Contains(sl, data any) bool {
+	val := reflect.ValueOf(sl)
+	// Iterate over the slice to check if data is present
+	for i := 0; i < val.Len(); i++ {
+		item := val.Index(i).Interface()
+		if reflect.DeepEqual(data, item) {
+			return true
+		}
+	}
+
+	return false
 }

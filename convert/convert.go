@@ -197,100 +197,100 @@ func To[T any](src T, dst any) (T, bool) {
 	}
 }
 
-func ToSlice[T any](src T, dst any) ([]T, bool) {
+func ToSlice[T any](src T, dst any) (any, bool) {
 	switch any(src).(type) {
 	case string:
 		val, ok := ToSliceString(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case bool:
 		val, ok := ToSliceBool(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case time.Time:
 		val, ok := ToSliceTime(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case float32:
 		val, ok := ToSliceFloat32(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case float64:
 		val, ok := ToSliceFloat64(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case uint:
 		val, ok := ToSliceUint(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case uint8:
 		val, ok := ToSliceUint8(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case uint16:
 		val, ok := ToSliceUint16(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case uint32:
 		val, ok := ToSliceUint32(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case uint64:
 		val, ok := ToSliceUint64(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case int:
 		val, ok := ToSliceInt(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case int8:
 		val, ok := ToSliceInt8(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case int16:
 		val, ok := ToSliceInt16(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case int32:
 		val, ok := ToSliceInt32(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	case int64:
 		val, ok := ToSliceInt64(dst)
 		if !ok {
-			return *new([]T), false
+			return nil, false
 		}
-		return any(val).([]T), true
+		return val, true
 	default:
-		return *new([]T), false
+		return nil, false
 	}
 }
 

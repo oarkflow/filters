@@ -8,9 +8,9 @@ import (
 )
 
 func main() {
-	sqlWhere := "LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name LIKE %Jane"
+	sqlWhere := "Age NOT LIKE %Jane"
 
-	condition, err := filters.FromSQL(sqlWhere)
+	condition, err := filters.ParseSQL(sqlWhere)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -26,13 +26,12 @@ func main() {
 		{"Age": 40, "City": "Houston", "CreatedAt": "2022-11-11 20:15:00", "VerifiedAt": "2022-11-11 20:15:00", "LoggedInAt": "2022-11-11 20:15:00", "Name": "Bob Johnson"},
 	}
 	fmt.Println(filters.FilterCondition(mapData, condition))
-	struct1Data()
 }
 
 func struct1Data() {
 	sqlWhere := "LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name LIKE %Jane"
 
-	condition, err := filters.FromSQL(sqlWhere)
+	condition, err := filters.ParseSQL(sqlWhere)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return

@@ -2,6 +2,7 @@ package filters
 
 import (
 	"errors"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -25,12 +26,13 @@ func (s *Sequence) Match(data any) bool {
 	if s.Next == nil {
 		return matched
 	}
+	matchedNext := s.Next.Match(data)
 	if s.Operator == AND {
-		return matched && s.Next.Match(data)
+		return matched && matchedNext
 	} else if s.Operator == OR {
-		return matched || s.Next.Match(data)
+		return matched || matchedNext
 	}
-	return s.Next.Match(data)
+	return matchedNext
 }
 
 func FilterCondition[T any](data []T, expr *Sequence) (result []T) {
@@ -62,7 +64,7 @@ type token struct {
 
 func isKeyword(s string) bool {
 	switch strings.ToUpper(s) {
-	case "SELECT", "FROM", "WHERE", "AND", "OR", "IS", "NULL", "NOT", "BETWEEN", "LIKE":
+	case "SELECT", "FROM", "WHERE", "AND", "OR", "IS", "NULL", "NOT LIKE", "NOT", "BETWEEN", "LIKE", "IN":
 		return true
 	default:
 		return false
@@ -183,7 +185,7 @@ func (p *parser) peekToken() (token, bool) {
 	return p.tokens[p.pos], true
 }
 
-func mapSQLOperatorToGoOperator(sqlOperator string) Operator {
+func toOperator(sqlOperator string) Operator {
 	switch strings.ToUpper(sqlOperator) {
 	case "=":
 		return Equal
@@ -231,7 +233,7 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 	}
 	switch tok.typ {
 	case tokenOperator:
-		operator := mapSQLOperatorToGoOperator(tok.value)
+		operator := toOperator(tok.value)
 
 		var value any
 		if operator != IsNull && operator != NotNull {
@@ -242,16 +244,10 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 			value = tok.value
 		}
 
-		filter := &Filter{
-			Field:    field,
-			Operator: operator,
-			Value:    value,
-		}
-
-		return filter, "", p.pos, nil
+		return NewFilter(field, operator, value), "", p.pos, nil
 	case tokenKeyword:
 		if tok.value == "BETWEEN" {
-			operator := mapSQLOperatorToGoOperator(tok.value)
+			operator := toOperator(tok.value)
 			tok, ok = p.nextToken()
 			if !ok || tok.typ != tokenIdentifier {
 				return nil, "", 0, errors.New("expected field name")
@@ -266,13 +262,7 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 				return nil, "", 0, errors.New("expected field name")
 			}
 			field2 := tok.value
-			filter := &Filter{
-				Field:    field,
-				Operator: operator,
-				Value:    []any{field1, field2},
-			}
-
-			return filter, "", p.pos, nil
+			return NewFilter(field, operator, []any{field1, field2}), "", p.pos, nil
 		} else if tok.value == "LIKE" {
 			tok, ok = p.nextToken()
 			if !ok || tok.typ != tokenIdentifier {
@@ -280,28 +270,82 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 			}
 			if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
 				val := strings.ReplaceAll(tok.value, "%", "")
-				filter := &Filter{
-					Field:    field,
-					Operator: Contains,
-					Value:    val,
-				}
-				return filter, "", p.pos, nil
+				return NewFilter(field, Contains, val), "", p.pos, nil
 			} else if strings.HasPrefix(tok.value, "%") && !strings.HasSuffix(tok.value, "%") {
 				val := strings.ReplaceAll(tok.value, "%", "")
-				filter := &Filter{
-					Field:    field,
-					Operator: StartsWith,
-					Value:    val,
-				}
-				return filter, "", p.pos, nil
+				return NewFilter(field, StartsWith, val), "", p.pos, nil
 			} else if !strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
 				val := strings.ReplaceAll(tok.value, "%", "")
-				filter := &Filter{
-					Field:    field,
-					Operator: EndsWith,
-					Value:    val,
+				return NewFilter(field, EndsWith, val), "", p.pos, nil
+			}
+		} else if tok.value == "IN" {
+			var in []any
+			tok, ok = p.nextToken()
+			if !ok && tok.typ != tokenLParen {
+				return nil, "", 0, errors.New("unexpected error")
+			}
+
+			for {
+				tok, _ = p.nextToken()
+				if tok.typ == tokenRParen {
+					break
 				}
-				return filter, "", p.pos, nil
+				if tok.typ == tokenValue || tok.typ == tokenIdentifier {
+					in = append(in, tok.value)
+				}
+			}
+			return NewFilter(field, In, in), "", p.pos, nil
+		} else if tok.value == "NOT" {
+			tok, ok = p.nextToken()
+			if !ok {
+				return nil, "", 0, errors.New("unexpected error")
+			}
+			switch tok.value {
+			case "IN":
+				var in []any
+				tok, ok = p.nextToken()
+				if !ok && tok.typ != tokenLParen {
+					return nil, "", 0, errors.New("unexpected error")
+				}
+
+				for {
+					tok, _ = p.nextToken()
+					if tok.typ == tokenRParen {
+						break
+					}
+					if tok.typ == tokenValue || tok.typ == tokenIdentifier {
+						in = append(in, tok.value)
+					}
+				}
+				return NewFilter(field, NotIn, in), "", p.pos, nil
+			case "LIKE":
+				tok, ok = p.nextToken()
+				if !ok || tok.typ != tokenIdentifier {
+					return nil, "", 0, errors.New("expected field name")
+				}
+				if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
+					val := strings.ReplaceAll(tok.value, "%", "")
+					filter := NewFilter(field, NotContains, val)
+					return filter, "", p.pos, nil
+				} else if strings.HasPrefix(tok.value, "%") && !strings.HasSuffix(tok.value, "%") {
+					val := strings.ReplaceAll(tok.value, "%", "")
+					filter := &Filter{
+						Field:    field,
+						Operator: StartsWith,
+						Value:    val,
+						Reverse:  true,
+					}
+					return filter, "", p.pos, nil
+				} else if !strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
+					val := strings.ReplaceAll(tok.value, "%", "")
+					filter := &Filter{
+						Field:    field,
+						Operator: EndsWith,
+						Value:    val,
+						Reverse:  true,
+					}
+					return filter, "", p.pos, nil
+				}
 			}
 		}
 	}
@@ -363,24 +407,34 @@ func parseFilterGroup(tokens []token) (*Sequence, int, error) {
 	return seq, p.pos, nil
 }
 
-func FromSQL(sql string) (*Sequence, error) {
+func ParseSQL(sql string) (*Sequence, error) {
+	sql = splitByWhere(sql)
 	tokens, err := tokenize(sql)
 	if err != nil {
 		return nil, err
 	}
-	var whereTokens []token
-	for _, tok := range tokens {
-		if tok.typ == tokenKeyword && strings.ToUpper(tok.value) == "WHERE" {
-			continue
-		}
-		whereTokens = append(whereTokens, tok)
-	}
-	if len(whereTokens) == 0 {
-		return nil, errors.New("no WHERE clause found")
-	}
-	filterGroup, _, err := parseFilterGroup(whereTokens)
+
+	filterGroup, _, err := parseFilterGroup(tokens)
 	if err != nil {
 		return nil, err
 	}
 	return filterGroup, nil
+}
+
+var (
+	re = regexp.MustCompile(`(?i)\bWHERE\b`)
+)
+
+func splitByWhere(sql string) string {
+	loc := re.FindStringIndex(sql)
+	if loc == nil {
+		return sql
+	}
+
+	beforeWhere := strings.TrimSpace(sql[:loc[0]])
+	afterWhere := strings.TrimSpace(sql[loc[1]:])
+	if afterWhere != "" {
+		return afterWhere
+	}
+	return beforeWhere
 }
