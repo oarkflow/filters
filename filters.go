@@ -17,10 +17,18 @@ type Filter struct {
 	validated bool
 }
 
+func (filter *Filter) Match(data any) bool {
+	return Match(data, filter)
+}
+
 type FilterGroup struct {
 	Operator Boolean
 	Filters  []*Filter
 	Reverse  bool
+}
+
+func (group *FilterGroup) Match(data any) bool {
+	return MatchGroup(data, group)
 }
 
 type Join struct {

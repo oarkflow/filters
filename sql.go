@@ -3,8 +3,33 @@ package filters
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
+
+type Condition interface {
+	Match(data any) bool
+}
+
+type Sequence struct {
+	Node     Condition
+	Operator Boolean
+	Next     Condition
+	Result   bool
+}
+
+func (s *Sequence) Match(data any) bool {
+	matched := s.Node.Match(data)
+	if s.Operator == AND && !matched {
+		return false
+	}
+	if s.Operator == AND {
+		return matched && s.Next.Match(data)
+	} else if s.Operator == OR {
+		return matched || s.Next.Match(data)
+	}
+	return s.Next.Match(data)
+}
 
 type tokenType string
 
@@ -178,19 +203,22 @@ func mapSQLOperatorToGoOperator(sqlOperator string) Operator {
 	}
 }
 
-func parseFilter(tokens []token) (*Filter, int, error) {
+func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 	p := &parser{tokens: tokens}
 
 	tok, ok := p.nextToken()
+	if !ok || (tok.typ == tokenKeyword && slices.Contains([]Boolean{AND, OR}, Boolean(tok.value))) {
+		return nil, Boolean(tok.value), p.pos, nil
+	}
 	if !ok || tok.typ != tokenIdentifier {
-		return nil, 0, errors.New("expected field name")
+		return nil, "", 0, errors.New("expected field name")
 	}
 	field := tok.value
 
 	tok, ok = p.nextToken()
 	if !ok || tok.typ != tokenOperator {
 		fmt.Println(tok)
-		return nil, 0, errors.New("expected operator")
+		return nil, "", 0, errors.New("expected operator")
 	}
 	operator := mapSQLOperatorToGoOperator(tok.value)
 
@@ -198,7 +226,7 @@ func parseFilter(tokens []token) (*Filter, int, error) {
 	if operator != IsNull && operator != NotNull {
 		tok, ok = p.nextToken()
 		if !ok || (tok.typ != tokenValue && tok.typ != tokenIdentifier) {
-			return nil, 0, errors.New("expected value")
+			return nil, "", 0, errors.New("expected value")
 		}
 		value = tok.value
 	}
@@ -209,12 +237,12 @@ func parseFilter(tokens []token) (*Filter, int, error) {
 		Value:    value,
 	}
 
-	return filter, p.pos, nil
+	return filter, "", p.pos, nil
 }
 
-func parseFilterGroup(tokens []token) (*FilterGroup, int, error) {
+func parseFilterGroup(tokens []token) (*Sequence, int, error) {
 	p := &parser{tokens: tokens}
-	var filters []*Filter
+	seq := &Sequence{}
 	var operator Boolean
 
 	for {
@@ -226,6 +254,7 @@ func parseFilterGroup(tokens []token) (*FilterGroup, int, error) {
 		if tok.typ == tokenBoolean {
 			p.nextToken() // consume the boolean token
 			operator = Boolean(strings.ToUpper(tok.value))
+			seq.Operator = operator
 			continue
 		}
 
@@ -236,12 +265,11 @@ func parseFilterGroup(tokens []token) (*FilterGroup, int, error) {
 				return nil, 0, err
 			}
 			p.pos += consumed
-
-			filters = append(filters, &Filter{
-				Field:    "",
-				Operator: "",
-				Value:    group,
-			})
+			if seq.Node == nil {
+				seq.Node = group
+			} else {
+				seq.Next = group
+			}
 			continue
 		}
 
@@ -249,45 +277,40 @@ func parseFilterGroup(tokens []token) (*FilterGroup, int, error) {
 			p.nextToken() // consume ')'
 			break
 		}
-
-		filter, consumed, err := parseFilter(tokens[p.pos:])
+		filter, ops, consumed, err := parseFilter(tokens[p.pos:])
 		if err != nil {
 			return nil, 0, err
 		}
-		filters = append(filters, filter)
-
 		p.pos += consumed
+		if ops != "" {
+			seq.Operator = ops
+		} else {
+			if seq.Node == nil {
+				seq.Node = filter
+			} else {
+				seq.Next = filter
+			}
+		}
 	}
-
-	return &FilterGroup{
-		Operator: operator,
-		Filters:  filters,
-	}, p.pos, nil
+	return seq, p.pos, nil
 }
 
-func FromSQL(sql string) (*FilterGroup, error) {
+func FromSQL(sql string) (*Sequence, error) {
 	tokens, err := tokenize(sql)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(tokens)
 	var whereTokens []token
-	whereClause := false
-
 	for _, tok := range tokens {
 		if tok.typ == tokenKeyword && strings.ToUpper(tok.value) == "WHERE" {
-			whereClause = true
 			continue
 		}
-		if whereClause || tok.typ != tokenKeyword {
-			whereTokens = append(whereTokens, tok)
-		}
+		whereTokens = append(whereTokens, tok)
 	}
-
 	if len(whereTokens) == 0 {
 		return nil, errors.New("no WHERE clause found")
 	}
-
+	fmt.Println(whereTokens)
 	filterGroup, _, err := parseFilterGroup(whereTokens)
 	if err != nil {
 		return nil, err
