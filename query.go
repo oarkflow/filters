@@ -8,13 +8,12 @@ import (
 )
 
 // ParseQuery parses the query string and returns Filter or Query.
-func ParseQuery(queryString string, exceptFields ...string) ([]Filter, error) {
-	queryParams, err := url.ParseQuery(strings.TrimPrefix(queryString, "?"))
+func ParseQuery(queryString string, exceptFields ...string) (filters []*Filter, err error) {
+	queryParams, err1 := url.ParseQuery(strings.TrimPrefix(queryString, "?"))
 	if err != nil {
-		return nil, err
+		err = err1
+		return
 	}
-	var filters []Filter
-
 	for key, values := range queryParams {
 		if strings.Contains(key, ":") {
 			parts := strings.Split(key, ":")
@@ -22,7 +21,7 @@ func ParseQuery(queryString string, exceptFields ...string) ([]Filter, error) {
 				if len(exceptFields) > 0 && slices.Contains(exceptFields, parts[0]) {
 					continue
 				}
-				filters = append(filters, New(parts[0], Equal, parts[1]))
+				filters = append(filters, NewFilter(parts[0], Equal, parts[1]))
 			} else if len(parts) == 3 {
 				if len(exceptFields) > 0 && slices.Contains(exceptFields, parts[0]) {
 					continue
@@ -53,18 +52,18 @@ func ParseQuery(queryString string, exceptFields ...string) ([]Filter, error) {
 				} else {
 					val = opValue
 				}
-				filters = append(filters, New(field, Operator(operator), val))
+				filters = append(filters, NewFilter(field, Operator(operator), val))
 			}
 		} else {
 			if len(exceptFields) > 0 && slices.Contains(exceptFields, key) {
 				continue
 			}
 			if len(values) == 1 {
-				filters = append(filters, New(key, Equal, values[0]))
+				filters = append(filters, NewFilter(key, Equal, values[0]))
 			} else if len(values) > 1 {
-				filters = append(filters, New(key, In, values))
+				filters = append(filters, NewFilter(key, In, values))
 			}
 		}
 	}
-	return filters, nil
+	return
 }

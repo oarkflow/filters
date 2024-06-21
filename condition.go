@@ -5,30 +5,10 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/oarkflow/expr"
+
 	"github.com/oarkflow/filters/convert"
 	"github.com/oarkflow/filters/utils"
-)
-
-type Operator string
-
-const (
-	Equal            Operator = "eq"
-	LessThan         Operator = "lt"
-	LessThanEqual    Operator = "le"
-	GreaterThan      Operator = "gt"
-	GreaterThanEqual Operator = "ge"
-	NotEqual         Operator = "ne"
-	Contains         Operator = "contains"
-	NotContains      Operator = "not_contains"
-	Between          Operator = "between"
-	In               Operator = "in"
-	StartsWith       Operator = "starts_with"
-	EndsWith         Operator = "ends_with"
-	NotIn            Operator = "not_in"
-	NotZero          Operator = "not_zero"
-	IsZero           Operator = "is_zero"
-	IsNull           Operator = "is_null"
-	NotNull          Operator = "not_null"
 )
 
 var (
@@ -48,61 +28,63 @@ var (
 	}
 )
 
-func Match[T any](item T, filter Filter) bool {
-	fieldVal := reflect.ValueOf(item)
-	var fieldValue reflect.Value
-	var val any
-
-	if fieldVal.Kind() == reflect.Map {
-		mapKey := reflect.ValueOf(filter.Field)
-		if !mapKey.IsValid() {
-			return false
-		}
-		fieldValue = fieldVal.MapIndex(mapKey)
-		if !fieldValue.IsValid() {
-			return false
-		}
-		val = fieldValue.Interface()
-	} else {
-		fieldValue = utils.GetFieldName(fieldVal, filter.Field)
-		if !fieldValue.IsValid() {
-			return false
-		}
-		val = fieldValue.Interface()
+func Match[T any](item T, filter *Filter) bool {
+	matched := match(item, filter)
+	if filter.Reverse {
+		return !matched
 	}
+	return matched
+}
 
-	if val == nil {
+func match[T any](item T, filter *Filter) bool {
+	if filter.validated {
+		if filter.err != nil {
+			return false
+		}
+	} else {
+		if filter.Validate() != nil {
+			return false
+		}
+	}
+	fieldVal := reflect.ValueOf(item)
+	fieldValue := getFieldValue(fieldVal, filter.Field)
+	if !fieldValue.IsValid() {
 		return false
 	}
+	val, err := resolveFilterValue(item, filter.Value)
+	if err != nil {
+		return false
+	}
+
 	switch filter.Operator {
 	case Equal:
-		return checkEq(val, filter)
+		return checkEq(fieldValue.Interface(), val)
 	case NotEqual:
-		return checkNeq(val, filter)
+		return checkNeq(fieldValue.Interface(), val)
 	case GreaterThan:
-		return checkGt(val, filter)
+		return checkGt(fieldValue.Interface(), val)
 	case LessThan:
-		return checkLt(val, filter)
+		return checkLt(fieldValue.Interface(), val)
 	case GreaterThanEqual:
-		return checkGte(val, filter)
+		return checkGte(fieldValue.Interface(), val)
 	case LessThanEqual:
-		return checkLte(val, filter)
+		return checkLte(fieldValue.Interface(), val)
 	case Between:
-		return checkBetween(val, filter)
+		return checkBetween(fieldValue.Interface(), val)
 	case In:
-		return checkIn(val, filter)
+		return checkIn(fieldValue.Interface(), val)
 	case NotIn:
-		return checkNotIn(val, filter)
+		return checkNotIn(fieldValue.Interface(), val)
 	case Contains:
-		return checkContains(val, filter)
+		return checkContains(fieldValue.Interface(), val)
 	case NotContains:
-		return checkNotContains(val, filter)
+		return checkNotContains(fieldValue.Interface(), val)
 	case StartsWith:
-		return checkStartsWith(val, filter)
+		return checkStartsWith(fieldValue.Interface(), val)
 	case EndsWith:
-		return checkEndsWith(val, filter)
+		return checkEndsWith(fieldValue.Interface(), val)
 	case IsZero:
-		return reflect.ValueOf(val).IsZero()
+		return fieldValue.IsZero()
 	case NotZero:
 		return !fieldValue.IsZero()
 	case IsNull:
@@ -113,40 +95,96 @@ func Match[T any](item T, filter Filter) bool {
 	return false
 }
 
-func checkEq[T comparable](val T, filter Filter) bool {
-	data, ok := convert.To(val, filter.Value)
+// Resolve filter value that may reference another field
+func resolveFilterValue(fieldVal, value any) (any, error) {
+	switch v := value.(type) {
+	case string:
+		if strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}") {
+			referenceField := strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(v, "}}"), "{{"))
+			return expr.Eval(referenceField, fieldVal)
+		}
+		return v, nil
+	case []string:
+		var resolvedValues []any
+		for _, val := range v {
+			resolvedValue, err := resolveFilterValue(fieldVal, val)
+			if err != nil {
+				return nil, err
+			}
+			resolvedValues = append(resolvedValues, resolvedValue)
+		}
+		return resolvedValues, nil
+	case []any:
+		var resolvedValues []any
+		for _, t := range v {
+			switch t := t.(type) {
+			case string:
+				resolvedValue, err := resolveFilterValue(fieldVal, t)
+				if err != nil {
+					return nil, err
+				}
+				resolvedValues = append(resolvedValues, resolvedValue)
+			}
+		}
+		return resolvedValues, nil
+	default:
+		return value, nil
+	}
+}
+
+func getFieldValue(fieldVal reflect.Value, fieldName string) reflect.Value {
+	if fieldVal.Kind() == reflect.Map {
+		mapKey := reflect.ValueOf(fieldName)
+		if !mapKey.IsValid() {
+			return mapKey
+		}
+		fieldValue := fieldVal.MapIndex(mapKey)
+		if !fieldValue.IsValid() {
+			return fieldValue
+		}
+		return fieldValue
+	}
+	fieldValue := utils.GetFieldName(fieldVal, fieldName)
+	if !fieldValue.IsValid() {
+		return fieldValue
+	}
+	return fieldValue
+}
+
+func checkEq(val, value any) bool {
+	data, ok := convert.To(val, value)
 	if !ok {
 		return ok
 	}
 	return val == data
 }
 
-func checkNeq[T comparable](val T, filter Filter) bool {
-	data, ok := convert.To(val, filter.Value)
+func checkNeq(val, value any) bool {
+	data, ok := convert.To(val, value)
 	if !ok {
 		return ok
 	}
 	return val != data
 }
 
-func checkGt[T comparable](data T, filter Filter) bool {
-	return convert.Compare(data, filter.Value) > 0
+func checkGt(data, value any) bool {
+	return convert.Compare(data, value) > 0
 }
 
-func checkLt[T any](data T, filter Filter) bool {
-	return convert.Compare(data, filter.Value) < 0
+func checkLt(data, value any) bool {
+	return convert.Compare(data, value) < 0
 }
 
-func checkGte[T any](data T, filter Filter) bool {
-	return convert.Compare(data, filter.Value) >= 0
+func checkGte(data, value any) bool {
+	return convert.Compare(data, value) >= 0
 }
 
-func checkLte[T any](data T, filter Filter) bool {
-	return convert.Compare(data, filter.Value) <= 0
+func checkLte(data, value any) bool {
+	return convert.Compare(data, value) <= 0
 }
 
-func checkBetween[T any](data T, filter Filter) bool {
-	switch values := filter.Value.(type) {
+func checkBetween(data, value any) bool {
+	switch values := value.(type) {
 	case []string:
 		return utils.Compare(data, values[0]) >= 0 && utils.Compare(data, values[1]) <= 0
 	case []any:
@@ -155,26 +193,26 @@ func checkBetween[T any](data T, filter Filter) bool {
 	return false
 }
 
-func checkIn[T comparable](data T, filter Filter) bool {
-	sl, ok := convert.ToSlice(data, filter.Value)
+func checkIn(data, value any) bool {
+	sl, ok := convert.ToSlice(data, value)
 	if !ok {
 		return false
 	}
 	return slices.Contains(sl, data)
 }
 
-func checkNotIn[T comparable](data T, filter Filter) bool {
-	sl, ok := convert.ToSlice(data, filter.Value)
+func checkNotIn(data, value any) bool {
+	sl, ok := convert.ToSlice(data, value)
 	if !ok {
 		return false
 	}
 	return !slices.Contains(sl, data)
 }
 
-func checkContains[T comparable](data T, filter Filter) bool {
-	switch val := any(data).(type) {
+func checkContains(data, value any) bool {
+	switch val := data.(type) {
 	case string:
-		switch gtVal := filter.Value.(type) {
+		switch gtVal := value.(type) {
 		case string:
 			return strings.Contains(val, gtVal)
 		}
@@ -184,10 +222,10 @@ func checkContains[T comparable](data T, filter Filter) bool {
 	return false
 }
 
-func checkNotContains[T any](data T, filter Filter) bool {
-	switch val := any(data).(type) {
+func checkNotContains(data, value any) bool {
+	switch val := data.(type) {
 	case string:
-		switch gtVal := filter.Value.(type) {
+		switch gtVal := value.(type) {
 		case string:
 			return !strings.Contains(val, gtVal)
 		}
@@ -197,10 +235,10 @@ func checkNotContains[T any](data T, filter Filter) bool {
 	return false
 }
 
-func checkStartsWith[T any](data T, filter Filter) bool {
-	switch val := any(data).(type) {
+func checkStartsWith(data, value any) bool {
+	switch val := data.(type) {
 	case string:
-		switch gtVal := filter.Value.(type) {
+		switch gtVal := value.(type) {
 		case string:
 			return strings.HasPrefix(val, gtVal)
 		}
@@ -210,10 +248,10 @@ func checkStartsWith[T any](data T, filter Filter) bool {
 	return false
 }
 
-func checkEndsWith[T any](data T, filter Filter) bool {
-	switch val := any(data).(type) {
+func checkEndsWith(data, value any) bool {
+	switch val := data.(type) {
 	case string:
-		switch gtVal := filter.Value.(type) {
+		switch gtVal := value.(type) {
 		case string:
 			return strings.HasSuffix(val, gtVal)
 		}

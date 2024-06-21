@@ -53,33 +53,21 @@ func (p *Case[T]) match(values map[string]any) *Case[T] {
 		case string:
 			switch match {
 			case EXISTS:
-				if !filters.Match(values, filters.Filter{
-					Field:    field,
-					Operator: filters.NotZero,
-					Value:    "",
-				}) {
+				if !filters.Match(values, filters.NewFilter(field, filters.NotZero, "")) {
 					return p
 				}
 			case NOTEXISTS:
-				if !filters.Match(values, filters.Filter{
-					Field:    field,
-					Operator: filters.IsZero,
-					Value:    "",
-				}) {
+				if !filters.Match(values, filters.NewFilter(field, filters.IsZero, "")) {
 					return p
 				}
 			case NONE:
-				filter := filters.Filter{
-					Field:    field,
-					Operator: filters.IsNull,
-				}
-				if !filters.Match(values, filter) {
+				if !filters.Match(values, filters.NewFilter(field, filters.IsNull, "")) {
 					return p
 				}
 			case ANY:
-
+				return p
 			default:
-				filter := filters.Filter{
+				filter := &filters.Filter{
 					Field:    field,
 					Operator: filters.Equal,
 					Value:    match,
@@ -89,7 +77,7 @@ func (p *Case[T]) match(values map[string]any) *Case[T] {
 				}
 			}
 		default:
-			filter := filters.Filter{
+			filter := &filters.Filter{
 				Field:    field,
 				Operator: filters.Equal,
 				Value:    match,
