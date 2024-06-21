@@ -87,14 +87,14 @@ func structData() {
 		},
 	}
 	// Create a binary expression
-	binaryExpr := filters.BinaryExpr[map[string]any]{
+	binaryExpr := filters.Group[map[string]any]{
 		Left:     &group1,
 		Operator: filters.AND,
 		Right:    &group2,
 	}
 
 	// Apply filters to map data using binary expression
-	filteredMapData, err := filters.ApplyBinaryFilter(mapData, binaryExpr)
+	filteredMapData, err := binaryExpr.Match(mapData)
 	if err != nil {
 		fmt.Println("Error applying filters:", err)
 		return
