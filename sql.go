@@ -2,7 +2,6 @@ package filters
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -306,7 +305,6 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 	field := tok.value
 	tok, ok = p.nextToken()
 	if !ok {
-		fmt.Println(tokens)
 		return nil, "", 0, errors.New("unexpected error1")
 	}
 	switch tok.typ {
@@ -343,7 +341,6 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 		} else if tok.value == "LIKE" {
 			tok, ok = p.nextToken()
 			if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-				fmt.Println(tokens)
 				return nil, "", 0, errors.New("expected field name 3")
 			}
 			if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {

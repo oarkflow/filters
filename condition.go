@@ -54,7 +54,6 @@ func match[T any](item T, filter *Filter) bool {
 	if err != nil {
 		return false
 	}
-
 	switch filter.Operator {
 	case Equal:
 		return checkEq(fieldValue.Interface(), val)
@@ -151,19 +150,37 @@ func getFieldValue(fieldVal reflect.Value, fieldName string) reflect.Value {
 }
 
 func checkEq(val, value any) bool {
-	data, ok := convert.To(val, value)
-	if !ok {
-		return ok
+	switch val := val.(type) {
+	case string:
+		data, ok := convert.ToString(value)
+		if !ok {
+			return ok
+		}
+		return strings.EqualFold(val, data)
+	default:
+		data, ok := convert.To(val, value)
+		if !ok {
+			return ok
+		}
+		return val == data
 	}
-	return val == data
 }
 
 func checkNeq(val, value any) bool {
-	data, ok := convert.To(val, value)
-	if !ok {
-		return ok
+	switch val := val.(type) {
+	case string:
+		data, ok := convert.ToString(value)
+		if !ok {
+			return ok
+		}
+		return !strings.EqualFold(val, data)
+	default:
+		data, ok := convert.To(val, value)
+		if !ok {
+			return ok
+		}
+		return val != data
 	}
-	return val != data
 }
 
 func checkGt(data, value any) bool {
@@ -213,7 +230,7 @@ func checkContains(data, value any) bool {
 	case string:
 		switch gtVal := value.(type) {
 		case string:
-			return strings.Contains(val, gtVal)
+			return strings.Contains(strings.ToLower(val), strings.ToLower(gtVal))
 		}
 		return false
 	}
@@ -226,7 +243,7 @@ func checkNotContains(data, value any) bool {
 	case string:
 		switch gtVal := value.(type) {
 		case string:
-			return !strings.Contains(val, gtVal)
+			return !strings.Contains(strings.ToLower(val), strings.ToLower(gtVal))
 		}
 		return false
 	}
@@ -239,7 +256,7 @@ func checkStartsWith(data, value any) bool {
 	case string:
 		switch gtVal := value.(type) {
 		case string:
-			return strings.HasPrefix(val, gtVal)
+			return strings.HasPrefix(strings.ToLower(val), strings.ToLower(gtVal))
 		}
 		return false
 	}
@@ -252,7 +269,7 @@ func checkEndsWith(data, value any) bool {
 	case string:
 		switch gtVal := value.(type) {
 		case string:
-			return strings.HasSuffix(val, gtVal)
+			return strings.HasSuffix(strings.ToLower(val), strings.ToLower(gtVal))
 		}
 		return false
 	}
