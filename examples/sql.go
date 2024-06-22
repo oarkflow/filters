@@ -9,13 +9,14 @@ import (
 
 func main() {
 	start := time.Now()
-	sqlWhere := "effective_date=2016-01-01t00:00:00z"
+	sqlWhere := "effective_date LIKE '2017-01-01%'"
 
 	condition, err := filters.ParseSQL(sqlWhere)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
+	fmt.Println(condition.Node)
 	fmt.Println(filters.FirstTermFilter(condition))
 	fmt.Println(fmt.Sprintf("%s", time.Since(start)))
 	data := map[string]any{

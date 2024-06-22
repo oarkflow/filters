@@ -351,10 +351,10 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 				return NewFilter(field, Contains, val), "", p.pos, nil
 			} else if strings.HasPrefix(tok.value, "%") && !strings.HasSuffix(tok.value, "%") {
 				val := strings.ReplaceAll(tok.value, "%", "")
-				return NewFilter(field, StartsWith, val), "", p.pos, nil
+				return NewFilter(field, EndsWith, val), "", p.pos, nil
 			} else if !strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
 				val := strings.ReplaceAll(tok.value, "%", "")
-				return NewFilter(field, EndsWith, val), "", p.pos, nil
+				return NewFilter(field, StartsWith, val), "", p.pos, nil
 			}
 		} else if tok.value == "IN" {
 			var in []any
@@ -409,7 +409,7 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 					val := strings.ReplaceAll(tok.value, "%", "")
 					filter := &Filter{
 						Field:    field,
-						Operator: StartsWith,
+						Operator: EndsWith,
 						Value:    val,
 						Reverse:  true,
 					}
@@ -418,7 +418,7 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 					val := strings.ReplaceAll(tok.value, "%", "")
 					filter := &Filter{
 						Field:    field,
-						Operator: EndsWith,
+						Operator: StartsWith,
 						Value:    val,
 						Reverse:  true,
 					}
