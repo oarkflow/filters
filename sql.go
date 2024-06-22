@@ -2,9 +2,12 @@ package filters
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/oarkflow/filters/utils"
 )
 
 type Condition interface {
@@ -55,6 +58,7 @@ const (
 	tokenRParen     tokenType = "RPAREN"
 	tokenKeyword    tokenType = "KEYWORD"
 	tokenComma      tokenType = "COMMA"
+	tokenVariable   tokenType = "VARIABLE"
 )
 
 type token struct {
@@ -97,18 +101,37 @@ func tokenize(input string) ([]token, error) {
 			}
 			tokens = append(tokens, token{typ: tokenValue, value: value})
 			i = newIndex
+		case r == '{' && i+1 < len(input) && input[i+1] == '{':
+			value, newIndex, err := parseVariable(input, i)
+			if err != nil {
+				return nil, err
+			}
+			tokens = append(tokens, token{typ: tokenVariable, value: "{{" + value + "}}"})
+			i = newIndex
 		case isDigit(r):
-			value, newIndex := parseNumber(input, i)
-			tokens = append(tokens, token{typ: tokenValue, value: value})
+			value, newIndex := parseIdentifierOrKeyword(input, i)
+			if utils.IsValidDateTime(value) {
+				tokens = append(tokens, token{typ: tokenValue, value: value})
+			} else {
+				value, newIndex = parseNumber(input, i)
+				tokens = append(tokens, token{typ: tokenValue, value: value})
+			}
 			i = newIndex
 		case isOperatorStart(r):
 			value, newIndex := parseOperator(input, i)
 			tokens = append(tokens, token{typ: tokenOperator, value: value})
 			i = newIndex
+			value, newIndex = parseIdentifierOrKeyword(input, i)
+			if utils.IsValidDateTime(value) {
+				tokens = append(tokens, token{typ: tokenValue, value: value})
+				i = newIndex
+			}
 		default:
 			value, newIndex := parseIdentifierOrKeyword(input, i)
 			if isKeyword(value) {
 				tokens = append(tokens, token{typ: tokenKeyword, value: strings.ToUpper(value)})
+			} else if utils.IsValidDateTime(value) {
+				tokens = append(tokens, token{typ: tokenValue, value: value})
 			} else if isBoolean(value) {
 				tokens = append(tokens, token{typ: tokenValue, value: strings.ToUpper(value)})
 			} else {
@@ -156,6 +179,17 @@ func parseStringLiteral(input string, start int) (string, int, error) {
 		return input[start+1 : i], i + 1, nil
 	}
 	return "", 0, errors.New("unclosed string literal")
+}
+
+func parseVariable(input string, start int) (string, int, error) {
+	i := start + 2
+	for i < len(input) && !(input[i] == '}' && i+1 < len(input) && input[i+1] == '}') {
+		i++
+	}
+	if i < len(input) && input[i] == '}' && i+1 < len(input) && input[i+1] == '}' {
+		return input[start+2 : i], i + 2, nil
+	}
+	return "", 0, errors.New("unclosed variable")
 }
 
 func parseNumber(input string, start int) (string, int) {
@@ -281,19 +315,18 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 		var value any
 		if operator != IsNull && operator != NotNull {
 			tok, ok = p.nextToken()
-			if !ok || (tok.typ != tokenValue && tok.typ != tokenIdentifier) {
+			if !ok || (tok.typ != tokenValue && tok.typ != tokenIdentifier && tok.typ != tokenVariable) {
 				return nil, "", 0, errors.New("expected value")
 			}
 			value = tok.value
 		}
-
 		return NewFilter(field, operator, value), "", p.pos, nil
 	case tokenKeyword:
 		if tok.value == "BETWEEN" {
 			operator := toOperator(tok.value)
 			tok, ok = p.nextToken()
-			if !ok || tok.typ != tokenIdentifier {
-				return nil, "", 0, errors.New("expected field name")
+			if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
+				return nil, "", 0, errors.New("expected field name 1")
 			}
 			field1 := tok.value
 			tok, ok = p.nextToken()
@@ -301,15 +334,16 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 				return nil, "", 0, errors.New("expected AND Operator")
 			}
 			tok, ok = p.nextToken()
-			if !ok || tok.typ != tokenIdentifier {
-				return nil, "", 0, errors.New("expected field name")
+			if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
+				return nil, "", 0, errors.New("expected field name 2")
 			}
 			field2 := tok.value
 			return NewFilter(field, operator, []any{field1, field2}), "", p.pos, nil
 		} else if tok.value == "LIKE" {
 			tok, ok = p.nextToken()
-			if !ok || tok.typ != tokenIdentifier {
-				return nil, "", 0, errors.New("expected field name")
+			if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
+				fmt.Println(tokens)
+				return nil, "", 0, errors.New("expected field name 3")
 			}
 			if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
 				val := strings.ReplaceAll(tok.value, "%", "")
@@ -333,7 +367,7 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 				if tok.typ == tokenRParen {
 					break
 				}
-				if tok.typ == tokenValue || tok.typ == tokenIdentifier {
+				if slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
 					in = append(in, tok.value)
 				}
 			}
@@ -356,7 +390,7 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 					if tok.typ == tokenRParen {
 						break
 					}
-					if tok.typ == tokenValue || tok.typ == tokenIdentifier {
+					if tok.typ == tokenValue || tok.typ == tokenVariable || tok.typ == tokenIdentifier {
 						in = append(in, tok.value)
 					}
 				}

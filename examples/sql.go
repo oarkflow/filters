@@ -9,7 +9,7 @@ import (
 
 func main() {
 	start := time.Now()
-	sqlWhere := "Salary = 12000 AND LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name = Jane"
+	sqlWhere := "LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name LIKE '%Jane'"
 
 	condition, err := filters.ParseSQL(sqlWhere)
 	if err != nil {
