@@ -111,7 +111,7 @@ func tokenize(input string) ([]token, error) {
 		case isDigit(r):
 			value, newIndex := parseIdentifierOrKeyword(input, i)
 			if utils.IsValidDateTime(value) {
-				tokens = append(tokens, token{typ: tokenValue, value: value})
+				tokens = append(tokens, token{typ: tokenValue, value: strings.ToUpper(value)})
 			} else {
 				value, newIndex = parseNumber(input, i)
 				tokens = append(tokens, token{typ: tokenValue, value: value})
@@ -123,7 +123,7 @@ func tokenize(input string) ([]token, error) {
 			i = newIndex
 			value, newIndex = parseIdentifierOrKeyword(input, i)
 			if utils.IsValidDateTime(value) {
-				tokens = append(tokens, token{typ: tokenValue, value: value})
+				tokens = append(tokens, token{typ: tokenValue, value: strings.ToUpper(value)})
 				i = newIndex
 			}
 		default:
@@ -131,7 +131,7 @@ func tokenize(input string) ([]token, error) {
 			if isKeyword(value) {
 				tokens = append(tokens, token{typ: tokenKeyword, value: strings.ToUpper(value)})
 			} else if utils.IsValidDateTime(value) {
-				tokens = append(tokens, token{typ: tokenValue, value: value})
+				tokens = append(tokens, token{typ: tokenValue, value: strings.ToUpper(value)})
 			} else if isBoolean(value) {
 				tokens = append(tokens, token{typ: tokenValue, value: strings.ToUpper(value)})
 			} else {
@@ -306,6 +306,7 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 	field := tok.value
 	tok, ok = p.nextToken()
 	if !ok {
+		fmt.Println(tokens)
 		return nil, "", 0, errors.New("unexpected error1")
 	}
 	switch tok.typ {

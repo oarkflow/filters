@@ -4,16 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
-)
 
-var re = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)|` +
-	`(\d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} [A-Z]{3})|` +
-	`(\w{3} \d{1,2},? \d{4} \d{2}:\d{2}(:\d{2})? [AP]M)|` +
-	`(\d{4}-\d{2}-\d{2})$`)
+	"github.com/oarkflow/date"
+)
 
 func GetFieldName(v reflect.Value, fieldName string) reflect.Value {
 	t := v.Type()
@@ -101,7 +97,12 @@ func Compare(a, b any) int {
 }
 
 func IsValidDateTime(str string) bool {
-	return re.MatchString(str)
+	str = strings.ToUpper(str)
+	_, err := date.Parse(str)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // ParseTime convert date string to time.Time
