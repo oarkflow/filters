@@ -450,6 +450,45 @@ func parseFilterGroup(tokens []token) (*Sequence, int, error) {
 	return seq, p.pos, nil
 }
 
+func FirstTermFilter(seq *Sequence) (*Filter, error) {
+	if seq == nil {
+		return nil, errors.New("sequence is nil")
+	}
+
+	// Helper function to traverse the sequence recursively
+	var traverse func(node any) *Filter
+	traverse = func(node any) *Filter {
+		switch n := node.(type) {
+		case *Filter:
+			if n.Operator == Equal {
+				return n
+			}
+		case *Sequence:
+			if n.Node != nil {
+				if filter := traverse(n.Node); filter != nil {
+					return filter
+				}
+			}
+			if n.Next != nil {
+				if filter := traverse(n.Next); filter != nil {
+					return filter
+				}
+			}
+		}
+		return nil
+	}
+
+	// Start traversing from the root of the sequence
+	if filter := traverse(seq.Node); filter != nil {
+		return filter, nil
+	}
+	if filter := traverse(seq.Next); filter != nil {
+		return filter, nil
+	}
+
+	return nil, errors.New("no equal filter found")
+}
+
 func ParseSQL(sql string) (*Sequence, error) {
 	sql = splitByWhere(sql)
 	tokens, err := tokenize(sql)

@@ -8,17 +8,21 @@ import (
 )
 
 func main() {
-	sqlWhere := "Age NOT LIKE %Jane"
+	start := time.Now()
+	sqlWhere := "Salary = 12000 AND LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name = Jane"
 
 	condition, err := filters.ParseSQL(sqlWhere)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
+	fmt.Println(filters.FirstTermFilter(condition))
+	fmt.Println(fmt.Sprintf("%s", time.Since(start)))
 	data := map[string]any{
 		"Age": 30, "City": "Los Angeles", "CreatedAt": "2022-06-15 15:30:00", "VerifiedAt": "2022-06-15 15:45:00", "LoggedInAt": "2022-06-15 15:33:00", "Name": "Jane Doe",
 	}
 	fmt.Println("Operator", condition.Match(data))
+	fmt.Println(fmt.Sprintf("%s", time.Since(start)))
 	mapData := []map[string]any{
 		{"Age": 25, "City": "NewFilter York", "CreatedAt": "2023-01-01 12:00:00", "VerifiedAt": "2023-01-01 12:00:00", "LoggedInAt": "2023-01-01 12:00:00", "Name": "Sujit Doe"},
 		{"Age": 30, "City": "Los Angeles", "CreatedAt": "2022-06-15 15:30:00", "VerifiedAt": "2022-06-15 15:45:00", "LoggedInAt": "2022-06-15 15:33:00", "Name": "Jane Doe"},
@@ -26,6 +30,7 @@ func main() {
 		{"Age": 40, "City": "Houston", "CreatedAt": "2022-11-11 20:15:00", "VerifiedAt": "2022-11-11 20:15:00", "LoggedInAt": "2022-11-11 20:15:00", "Name": "Bob Johnson"},
 	}
 	fmt.Println(filters.FilterCondition(mapData, condition))
+	fmt.Println(fmt.Sprintf("%s", time.Since(start)))
 }
 
 func struct1Data() {
