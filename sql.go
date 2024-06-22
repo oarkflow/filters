@@ -63,105 +63,148 @@ type token struct {
 }
 
 func isKeyword(s string) bool {
-	switch strings.ToUpper(s) {
-	case "SELECT", "FROM", "WHERE", "AND", "OR", "IS", "NULL", "NOT LIKE", "NOT", "BETWEEN", "LIKE", "IN":
-		return true
-	default:
-		return false
+	keywords := map[string]bool{
+		"SELECT": true, "FROM": true, "WHERE": true, "AND": true, "OR": true,
+		"IS": true, "NULL": true, "NOT LIKE": true, "NOT": true, "BETWEEN": true,
+		"LIKE": true, "IN": true,
 	}
+	return keywords[strings.ToUpper(s)]
 }
 
 func isOperator(s string) bool {
-	switch strings.ToUpper(s) {
-	case "=", "!=", ">", "<", ">=", "<=", "LIKE", "NOT LIKE", "BETWEEN", "IN":
-		return true
-	default:
-		return false
+	operators := map[string]bool{
+		"=": true, "!=": true, "<>": true, ">": true, "<": true, ">=": true, "<=": true,
+		"LIKE": true, "NOT LIKE": true, "BETWEEN": true, "IN": true,
 	}
+	return operators[strings.ToUpper(s)]
 }
 
 func tokenize(input string) ([]token, error) {
 	var tokens []token
-
-	isWhitespace := func(r rune) bool {
-		return r == ' ' || r == '\t' || r == '\n'
-	}
-
-	isDigit := func(r rune) bool {
-		return r >= '0' && r <= '9'
-	}
-
 	input = strings.TrimSpace(input)
+
 	for i := 0; i < len(input); {
-		r := rune(input[i])
-		switch {
+		switch r := input[i]; {
 		case isWhitespace(r):
 			i++
-		case r == '(':
-			tokens = append(tokens, token{typ: tokenLParen, value: string(r)})
-			i++
-		case r == ')':
-			tokens = append(tokens, token{typ: tokenRParen, value: string(r)})
-			i++
-		case r == ',':
-			tokens = append(tokens, token{typ: tokenComma, value: string(r)})
+		case r == '(', r == ')', r == ',':
+			tokens = append(tokens, token{typ: runeToTokenType(r), value: string(r)})
 			i++
 		case r == '\'':
-			start := i + 1
-			i++
-			for i < len(input) && rune(input[i]) != '\'' {
-				i++
+			value, newIndex, err := parseStringLiteral(input, i)
+			if err != nil {
+				return nil, err
 			}
-			if i < len(input) && rune(input[i]) == '\'' {
-				tokens = append(tokens, token{typ: tokenValue, value: input[start:i]})
-				i++
-			} else {
-				return nil, errors.New("unclosed string literal")
-			}
+			tokens = append(tokens, token{typ: tokenValue, value: value})
+			i = newIndex
 		case isDigit(r):
-			start := i
-			for i < len(input) && isDigit(rune(input[i])) {
-				i++
-			}
-			tokens = append(tokens, token{typ: tokenValue, value: input[start:i]})
-		case isOperator(string(r)):
-			start := i
-			for i < len(input) && isOperator(string(input[i])) {
-				i++
-			}
-			tokens = append(tokens, token{typ: tokenOperator, value: input[start:i]})
+			value, newIndex := parseNumber(input, i)
+			tokens = append(tokens, token{typ: tokenValue, value: value})
+			i = newIndex
+		case isOperatorStart(r):
+			value, newIndex := parseOperator(input, i)
+			tokens = append(tokens, token{typ: tokenOperator, value: value})
+			i = newIndex
 		default:
-			start := i
-			for i < len(input) && !isWhitespace(rune(input[i])) && !isOperator(string(input[i])) && input[i] != '(' && input[i] != ')' && input[i] != ',' {
-				i++
-			}
-			value := input[start:i]
+			value, newIndex := parseIdentifierOrKeyword(input, i)
 			if isKeyword(value) {
 				tokens = append(tokens, token{typ: tokenKeyword, value: strings.ToUpper(value)})
-			} else if strings.ToUpper(value) == "TRUE" || strings.ToUpper(value) == "FALSE" {
+			} else if isBoolean(value) {
 				tokens = append(tokens, token{typ: tokenValue, value: strings.ToUpper(value)})
 			} else {
 				tokens = append(tokens, token{typ: tokenIdentifier, value: value})
 			}
+			i = newIndex
 		}
 	}
 
-	// Combine tokens to correctly form compound operators like "IS NULL" and "IS NOT NULL"
-	for i := 0; i < len(tokens)-1; i++ {
+	tokens = combineCompoundOperators(tokens)
+	return tokens, nil
+}
+
+func runeToTokenType(r byte) tokenType {
+	switch r {
+	case '(':
+		return tokenLParen
+	case ')':
+		return tokenRParen
+	case ',':
+		return tokenComma
+	default:
+		return ""
+	}
+}
+
+func isWhitespace(r byte) bool {
+	return r == ' ' || r == '\t' || r == '\n'
+}
+
+func isDigit(r byte) bool {
+	return r >= '0' && r <= '9'
+}
+
+func isOperatorStart(r byte) bool {
+	return isOperator(string(r))
+}
+
+func parseStringLiteral(input string, start int) (string, int, error) {
+	i := start + 1
+	for i < len(input) && input[i] != '\'' {
+		i++
+	}
+	if i < len(input) && input[i] == '\'' {
+		return input[start+1 : i], i + 1, nil
+	}
+	return "", 0, errors.New("unclosed string literal")
+}
+
+func parseNumber(input string, start int) (string, int) {
+	i := start
+	for i < len(input) && isDigit(input[i]) {
+		i++
+	}
+	return input[start:i], i
+}
+
+func parseOperator(input string, start int) (string, int) {
+	i := start
+	for i < len(input) && isOperator(string(input[i])) {
+		i++
+	}
+	return input[start:i], i
+}
+
+func parseIdentifierOrKeyword(input string, start int) (string, int) {
+	i := start
+	for i < len(input) && !isWhitespace(input[i]) && !isOperatorStart(input[i]) && input[i] != '(' && input[i] != ')' && input[i] != ',' {
+		i++
+	}
+	return input[start:i], i
+}
+
+func isBoolean(s string) bool {
+	return strings.ToUpper(s) == "TRUE" || strings.ToUpper(s) == "FALSE"
+}
+
+func combineCompoundOperators(tokens []token) []token {
+	var result []token
+	for i := 0; i < len(tokens); i++ {
 		if tokens[i].typ == tokenKeyword && strings.ToUpper(tokens[i].value) == "IS" {
 			if i+1 < len(tokens) && tokens[i+1].typ == tokenKeyword {
 				if strings.ToUpper(tokens[i+1].value) == "NULL" {
-					tokens[i] = token{typ: tokenOperator, value: "IS NULL"}
-					tokens = append(tokens[:i+1], tokens[i+2:]...)
+					result = append(result, token{typ: tokenOperator, value: "IS NULL"})
+					i++
+					continue
 				} else if strings.ToUpper(tokens[i+1].value) == "NOT" && i+2 < len(tokens) && strings.ToUpper(tokens[i+2].value) == "NULL" {
-					tokens[i] = token{typ: tokenOperator, value: "IS NOT NULL"}
-					tokens = append(tokens[:i+1], tokens[i+3:]...)
+					result = append(result, token{typ: tokenOperator, value: "IS NOT NULL"})
+					i += 2
+					continue
 				}
 			}
 		}
+		result = append(result, tokens[i])
 	}
-
-	return tokens, nil
+	return result
 }
 
 type parser struct {
@@ -189,7 +232,7 @@ func toOperator(sqlOperator string) Operator {
 	switch strings.ToUpper(sqlOperator) {
 	case "=":
 		return Equal
-	case "!=":
+	case "!=", "<>":
 		return NotEqual
 	case ">":
 		return GreaterThan
