@@ -8,8 +8,8 @@ import (
 )
 
 func main() {
-	start := time.Now()
-	sqlWhere := "effective_date LIKE '2017-01-01%'"
+	/*start := time.Now()
+	sqlWhere := "LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name LIKE %Jane"
 
 	condition, err := filters.ParseSQL(sqlWhere)
 	if err != nil {
@@ -32,10 +32,12 @@ func main() {
 	}
 	fmt.Println(filters.FilterCondition(mapData, condition))
 	fmt.Println(fmt.Sprintf("%s", time.Since(start)))
+	*/
+	struct1Data()
 }
 
 func struct1Data() {
-	sqlWhere := "LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name LIKE %Jane"
+	sqlWhere := "LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name NOT LIKE %Jane"
 
 	condition, err := filters.ParseSQL(sqlWhere)
 	if err != nil {

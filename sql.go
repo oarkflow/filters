@@ -2,6 +2,7 @@ package filters
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -68,7 +69,7 @@ type token struct {
 func isKeyword(s string) bool {
 	keywords := map[string]bool{
 		"SELECT": true, "FROM": true, "WHERE": true, "AND": true, "OR": true,
-		"IS": true, "NULL": true, "NOT LIKE": true, "NOT": true, "BETWEEN": true,
+		"IS": true, "NULL": true, "NOT LIKE": true, "NOT": true, "BETWEEN": true, "NOT BETWEEN": true,
 		"LIKE": true, "IN": true,
 	}
 	return keywords[strings.ToUpper(s)]
@@ -77,7 +78,8 @@ func isKeyword(s string) bool {
 func isOperator(s string) bool {
 	operators := map[string]bool{
 		"=": true, "!=": true, "<>": true, ">": true, "<": true, ">=": true, "<=": true,
-		"LIKE": true, "NOT LIKE": true, "BETWEEN": true, "IN": true,
+		"LIKE": true, "NOT LIKE": true, "BETWEEN": true, "NOT BETWEEN": true, "IN": true, "NOT IN": true,
+		"IS NULL": true, "IS NOT NULL": true,
 	}
 	return operators[strings.ToUpper(s)]
 }
@@ -222,16 +224,31 @@ func isBoolean(s string) bool {
 func combineCompoundOperators(tokens []token) []token {
 	var result []token
 	for i := 0; i < len(tokens); i++ {
-		if tokens[i].typ == tokenKeyword && strings.ToUpper(tokens[i].value) == "IS" {
+		if tokens[i].typ == tokenKeyword && strings.ToUpper(tokens[i].value) == "NOT" {
 			if i+1 < len(tokens) && tokens[i+1].typ == tokenKeyword {
-				if strings.ToUpper(tokens[i+1].value) == "NULL" {
-					result = append(result, token{typ: tokenOperator, value: "IS NULL"})
+				compoundOperator := strings.ToUpper(tokens[i].value + " " + tokens[i+1].value)
+				if isOperator(compoundOperator) {
+					result = append(result, token{typ: tokenOperator, value: compoundOperator})
 					i++
 					continue
-				} else if strings.ToUpper(tokens[i+1].value) == "NOT" && i+2 < len(tokens) && strings.ToUpper(tokens[i+2].value) == "NULL" {
-					result = append(result, token{typ: tokenOperator, value: "IS NOT NULL"})
-					i += 2
+				}
+			}
+		}
+		if tokens[i].typ == tokenKeyword && strings.ToUpper(tokens[i].value) == "IS" {
+			if i+1 < len(tokens) && tokens[i+1].typ == tokenKeyword {
+				compoundOperator := strings.ToUpper(tokens[i].value + " " + tokens[i+1].value)
+				if isOperator(compoundOperator) {
+					result = append(result, token{typ: tokenOperator, value: compoundOperator})
+					i++
 					continue
+				}
+				if strings.ToUpper(tokens[i+1].value) == "NOT" && i+2 < len(tokens) && tokens[i+2].typ == tokenKeyword {
+					compoundOperator = strings.ToUpper(tokens[i].value + " " + tokens[i+1].value + " " + tokens[i+2].value)
+					if isOperator(compoundOperator) {
+						result = append(result, token{typ: tokenOperator, value: compoundOperator})
+						i += 2
+						continue
+					}
 				}
 			}
 		}
@@ -310,7 +327,6 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 	switch tok.typ {
 	case tokenOperator:
 		operator := toOperator(tok.value)
-
 		var value any
 		if operator != IsNull && operator != NotNull {
 			tok, ok = p.nextToken()
@@ -318,6 +334,19 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 				return nil, "", 0, errors.New("expected value")
 			}
 			value = tok.value
+		}
+		if operator == NotContains {
+			val := value.(string)
+			if strings.HasPrefix(val, "%") && strings.HasSuffix(val, "%") {
+				val = strings.Trim(val, "%")
+				return NewFilter(field, NotContains, val), "", p.pos, nil
+			} else if strings.HasPrefix(val, "%") && !strings.HasSuffix(val, "%") {
+				val = strings.Trim(val, "%")
+				return NewFilter(field, NotEndsWith, val), "", p.pos, nil
+			} else if !strings.HasPrefix(val, "%") && strings.HasSuffix(val, "%") {
+				val = strings.Trim(val, "%")
+				return NewFilter(field, NotStartsWith, val), "", p.pos, nil
+			}
 		}
 		return NewFilter(field, operator, value), "", p.pos, nil
 	case tokenKeyword:
@@ -344,13 +373,13 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 				return nil, "", 0, errors.New("expected field name 3")
 			}
 			if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
-				val := strings.ReplaceAll(tok.value, "%", "")
+				val := strings.Trim(tok.value, "%")
 				return NewFilter(field, Contains, val), "", p.pos, nil
 			} else if strings.HasPrefix(tok.value, "%") && !strings.HasSuffix(tok.value, "%") {
-				val := strings.ReplaceAll(tok.value, "%", "")
+				val := strings.Trim(tok.value, "%")
 				return NewFilter(field, EndsWith, val), "", p.pos, nil
 			} else if !strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
-				val := strings.ReplaceAll(tok.value, "%", "")
+				val := strings.Trim(tok.value, "%")
 				return NewFilter(field, StartsWith, val), "", p.pos, nil
 			}
 		} else if tok.value == "IN" {
@@ -399,11 +428,11 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 					return nil, "", 0, errors.New("expected field name")
 				}
 				if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
-					val := strings.ReplaceAll(tok.value, "%", "")
+					val := strings.Trim(tok.value, "%")
 					filter := NewFilter(field, NotContains, val)
 					return filter, "", p.pos, nil
 				} else if strings.HasPrefix(tok.value, "%") && !strings.HasSuffix(tok.value, "%") {
-					val := strings.ReplaceAll(tok.value, "%", "")
+					val := strings.Trim(tok.value, "%")
 					filter := &Filter{
 						Field:    field,
 						Operator: EndsWith,
@@ -412,7 +441,7 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 					}
 					return filter, "", p.pos, nil
 				} else if !strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
-					val := strings.ReplaceAll(tok.value, "%", "")
+					val := strings.Trim(tok.value, "%")
 					filter := &Filter{
 						Field:    field,
 						Operator: StartsWith,
@@ -468,6 +497,7 @@ func parseFilterGroup(tokens []token) (*Sequence, int, error) {
 		if err != nil {
 			return nil, 0, err
 		}
+		fmt.Println(filter, ops)
 		p.pos += consumed
 		if ops != "" {
 			seq.Operator = ops

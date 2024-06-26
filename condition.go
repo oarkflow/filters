@@ -23,7 +23,9 @@ var (
 		Between:          {},
 		In:               {},
 		StartsWith:       {},
+		NotStartsWith:    {},
 		EndsWith:         {},
+		NotEndsWith:      {},
 	}
 )
 
@@ -81,6 +83,10 @@ func match[T any](item T, filter *Filter) bool {
 		return checkStartsWith(fieldValue.Interface(), val)
 	case EndsWith:
 		return checkEndsWith(fieldValue.Interface(), val)
+	case NotStartsWith:
+		return !checkStartsWith(fieldValue.Interface(), val)
+	case NotEndsWith:
+		return !checkEndsWith(fieldValue.Interface(), val)
 	case IsZero:
 		return fieldValue.IsZero()
 	case NotZero:
