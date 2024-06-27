@@ -2,7 +2,6 @@ package filters
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -497,7 +496,6 @@ func parseFilterGroup(tokens []token) (*Sequence, int, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-		fmt.Println(filter, ops)
 		p.pos += consumed
 		if ops != "" {
 			seq.Operator = ops
