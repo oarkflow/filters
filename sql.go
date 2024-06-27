@@ -65,21 +65,24 @@ type token struct {
 	value string
 }
 
-func isKeyword(s string) bool {
-	keywords := map[string]bool{
+var (
+	keywords = map[string]bool{
 		"SELECT": true, "FROM": true, "WHERE": true, "AND": true, "OR": true,
 		"IS": true, "NULL": true, "NOT LIKE": true, "NOT": true, "BETWEEN": true, "NOT BETWEEN": true,
 		"LIKE": true, "IN": true,
 	}
-	return keywords[strings.ToUpper(s)]
-}
-
-func isOperator(s string) bool {
-	operators := map[string]bool{
+	operators = map[string]bool{
 		"=": true, "!=": true, "<>": true, ">": true, "<": true, ">=": true, "<=": true,
 		"LIKE": true, "NOT LIKE": true, "BETWEEN": true, "NOT BETWEEN": true, "IN": true, "NOT IN": true,
 		"IS NULL": true, "IS NOT NULL": true,
 	}
+)
+
+func isKeyword(s string) bool {
+	return keywords[strings.ToUpper(s)]
+}
+
+func isOperator(s string) bool {
 	return operators[strings.ToUpper(s)]
 }
 
@@ -315,16 +318,16 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 	if !ok || (tok.typ == tokenKeyword && slices.Contains([]Boolean{AND, OR}, Boolean(tok.value))) {
 		return nil, Boolean(tok.value), p.pos, nil
 	}
-	if !ok || tok.typ != tokenIdentifier {
+	if tok.typ != tokenIdentifier {
 		return nil, "", 0, errors.New("expected field name")
 	}
 	field := tok.value
+
 	tok, ok = p.nextToken()
 	if !ok {
-		return nil, "", 0, errors.New("unexpected error1")
+		return nil, "", 0, errors.New("unexpected error")
 	}
-	switch tok.typ {
-	case tokenOperator:
+	if tok.typ == tokenOperator {
 		operator := toOperator(tok.value)
 		var value any
 		if operator != IsNull && operator != NotNull {
@@ -336,123 +339,140 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 		}
 		if operator == NotContains {
 			val := value.(string)
-			if strings.HasPrefix(val, "%") && strings.HasSuffix(val, "%") {
-				val = strings.Trim(val, "%")
+			val = strings.Trim(val, "%")
+			switch {
+			case strings.HasPrefix(val, "%") && strings.HasSuffix(val, "%"):
 				return NewFilter(field, NotContains, val), "", p.pos, nil
-			} else if strings.HasPrefix(val, "%") && !strings.HasSuffix(val, "%") {
-				val = strings.Trim(val, "%")
+			case strings.HasPrefix(val, "%"):
 				return NewFilter(field, NotEndsWith, val), "", p.pos, nil
-			} else if !strings.HasPrefix(val, "%") && strings.HasSuffix(val, "%") {
-				val = strings.Trim(val, "%")
+			case strings.HasSuffix(val, "%"):
 				return NewFilter(field, NotStartsWith, val), "", p.pos, nil
 			}
 		}
 		return NewFilter(field, operator, value), "", p.pos, nil
-	case tokenKeyword:
-		if tok.value == "BETWEEN" {
-			operator := toOperator(tok.value)
-			tok, ok = p.nextToken()
-			if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-				return nil, "", 0, errors.New("expected field name 1")
-			}
-			field1 := tok.value
-			tok, ok = p.nextToken()
-			if !ok || tok.value != "AND" {
-				return nil, "", 0, errors.New("expected AND Operator")
-			}
-			tok, ok = p.nextToken()
-			if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-				return nil, "", 0, errors.New("expected field name 2")
-			}
-			field2 := tok.value
-			return NewFilter(field, operator, []any{field1, field2}), "", p.pos, nil
-		} else if tok.value == "LIKE" {
-			tok, ok = p.nextToken()
-			if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-				return nil, "", 0, errors.New("expected field name 3")
-			}
-			if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
-				val := strings.Trim(tok.value, "%")
-				return NewFilter(field, Contains, val), "", p.pos, nil
-			} else if strings.HasPrefix(tok.value, "%") && !strings.HasSuffix(tok.value, "%") {
-				val := strings.Trim(tok.value, "%")
-				return NewFilter(field, EndsWith, val), "", p.pos, nil
-			} else if !strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
-				val := strings.Trim(tok.value, "%")
-				return NewFilter(field, StartsWith, val), "", p.pos, nil
-			}
-		} else if tok.value == "IN" {
-			var in []any
-			tok, ok = p.nextToken()
-			if !ok && tok.typ != tokenLParen {
-				return nil, "", 0, errors.New("unexpected error")
-			}
+	}
 
-			for {
-				tok, _ = p.nextToken()
-				if tok.typ == tokenRParen {
-					break
-				}
-				if slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-					in = append(in, tok.value)
-				}
-			}
-			return NewFilter(field, In, in), "", p.pos, nil
-		} else if tok.value == "NOT" {
-			tok, ok = p.nextToken()
-			if !ok {
-				return nil, "", 0, errors.New("unexpected error")
-			}
-			switch tok.value {
-			case "IN":
-				var in []any
-				tok, ok = p.nextToken()
-				if !ok && tok.typ != tokenLParen {
-					return nil, "", 0, errors.New("unexpected error")
-				}
-
-				for {
-					tok, _ = p.nextToken()
-					if tok.typ == tokenRParen {
-						break
-					}
-					if tok.typ == tokenValue || tok.typ == tokenVariable || tok.typ == tokenIdentifier {
-						in = append(in, tok.value)
-					}
-				}
-				return NewFilter(field, NotIn, in), "", p.pos, nil
-			case "LIKE":
-				tok, ok = p.nextToken()
-				if !ok || tok.typ != tokenIdentifier {
-					return nil, "", 0, errors.New("expected field name")
-				}
-				if strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
-					val := strings.Trim(tok.value, "%")
-					filter := NewFilter(field, NotContains, val)
-					return filter, "", p.pos, nil
-				} else if strings.HasPrefix(tok.value, "%") && !strings.HasSuffix(tok.value, "%") {
-					val := strings.Trim(tok.value, "%")
-					filter := &Filter{
-						Field:    field,
-						Operator: EndsWith,
-						Value:    val,
-						Reverse:  true,
-					}
-					return filter, "", p.pos, nil
-				} else if !strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%") {
-					val := strings.Trim(tok.value, "%")
-					filter := &Filter{
-						Field:    field,
-						Operator: StartsWith,
-						Value:    val,
-						Reverse:  true,
-					}
-					return filter, "", p.pos, nil
-				}
-			}
+	if tok.typ == tokenKeyword {
+		switch tok.value {
+		case "BETWEEN":
+			return parseBetween(p, field)
+		case "LIKE":
+			return parseLike(p, field)
+		case "IN":
+			return parseIn(p, field)
+		case "NOT":
+			return parseNot(p, field)
 		}
 	}
-	return nil, "", 0, errors.New("unexpected error")
+
+	return nil, "", 0, errors.New("unexpected token")
+}
+
+func parseBetween(p *parser, field string) (*Filter, Boolean, int, error) {
+	operator := Between
+
+	tok, ok := p.nextToken()
+	if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
+		return nil, "", 0, errors.New("expected value")
+	}
+	field1 := tok.value
+
+	tok, ok = p.nextToken()
+	if !ok || tok.value != "AND" {
+		return nil, "", 0, errors.New("expected AND operator")
+	}
+
+	tok, ok = p.nextToken()
+	if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
+		return nil, "", 0, errors.New("expected value")
+	}
+	field2 := tok.value
+
+	return NewFilter(field, operator, []any{field1, field2}), "", p.pos, nil
+}
+
+func parseLike(p *parser, field string) (*Filter, Boolean, int, error) {
+	tok, ok := p.nextToken()
+	if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
+		return nil, "", 0, errors.New("expected value")
+	}
+	val := strings.Trim(tok.value, "%")
+	switch {
+	case strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%"):
+		return NewFilter(field, Contains, val), "", p.pos, nil
+	case strings.HasPrefix(tok.value, "%"):
+		return NewFilter(field, EndsWith, val), "", p.pos, nil
+	case strings.HasSuffix(tok.value, "%"):
+		return NewFilter(field, StartsWith, val), "", p.pos, nil
+	}
+	return nil, "", 0, errors.New("unexpected LIKE pattern")
+}
+
+func parseIn(p *parser, field string) (*Filter, Boolean, int, error) {
+	var in []any
+	tok, ok := p.nextToken()
+	if !ok || tok.typ != tokenLParen {
+		return nil, "", 0, errors.New("expected '('")
+	}
+	for {
+		tok, _ = p.nextToken()
+		if tok.typ == tokenRParen {
+			break
+		}
+		if slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
+			in = append(in, tok.value)
+		}
+	}
+	return NewFilter(field, In, in), "", p.pos, nil
+}
+
+func parseNot(p *parser, field string) (*Filter, Boolean, int, error) {
+	tok, ok := p.nextToken()
+	if !ok {
+		return nil, "", 0, errors.New("unexpected error")
+	}
+	switch tok.value {
+	case "IN":
+		return parseNotIn(p, field)
+	case "LIKE":
+		return parseNotLike(p, field)
+	}
+	return nil, "", 0, errors.New("unexpected NOT token")
+}
+
+func parseNotIn(p *parser, field string) (*Filter, Boolean, int, error) {
+	var in []any
+	tok, ok := p.nextToken()
+	if !ok || tok.typ != tokenLParen {
+		return nil, "", 0, errors.New("expected '('")
+	}
+	for {
+		tok, _ = p.nextToken()
+		if tok.typ == tokenRParen {
+			break
+		}
+		if slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
+			in = append(in, tok.value)
+		}
+	}
+	return NewFilter(field, NotIn, in), "", p.pos, nil
+}
+
+func parseNotLike(p *parser, field string) (*Filter, Boolean, int, error) {
+	tok, ok := p.nextToken()
+	if !ok || tok.typ != tokenIdentifier {
+		return nil, "", 0, errors.New("expected value")
+	}
+	val := strings.Trim(tok.value, "%")
+	switch {
+	case strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%"):
+		return NewFilter(field, NotContains, val), "", p.pos, nil
+	case strings.HasPrefix(tok.value, "%"):
+		return &Filter{Field: field, Operator: EndsWith, Value: val, Reverse: true}, "", p.pos, nil
+	case strings.HasSuffix(tok.value, "%"):
+		return &Filter{Field: field, Operator: StartsWith, Value: val, Reverse: true}, "", p.pos, nil
+	}
+	return nil, "", 0, errors.New("unexpected LIKE pattern")
 }
 
 func parseFilterGroup(tokens []token) (*Sequence, int, error) {

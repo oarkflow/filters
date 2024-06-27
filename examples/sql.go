@@ -37,7 +37,7 @@ func main() {
 }
 
 func struct1Data() {
-	sqlWhere := "LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name NOT LIKE Jane"
+	sqlWhere := "LoggedInAt BETWEEN {{CreatedAt}} AND {{VerifiedAt}} AND Name NOT LIKE %Jane"
 
 	condition, err := filters.ParseSQL(sqlWhere)
 	if err != nil {
