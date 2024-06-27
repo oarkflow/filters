@@ -427,13 +427,16 @@ func ToUint16(val any) (uint16, bool) {
 }
 
 func ToUint32(val any) (uint32, bool) {
+	maxUint32Bit := uint32((1 << 32) - 1)
 	switch v := val.(type) {
 	case uint32:
 		return v, true
 	case uint:
-		return uint32(v), v <= 4294967295
+		vt := uint32(v)
+		return vt, vt <= maxUint32Bit
 	case int:
-		return uint32(v), v >= 0 && v <= 4294967295
+		vt := uint32(v)
+		return vt, v >= 0 && vt <= maxUint32Bit
 	case string:
 		u, err := strconv.ParseUint(v, 10, 32)
 		return uint32(u), err == nil
@@ -505,11 +508,13 @@ func ToInt16(val any) (int16, bool) {
 }
 
 func ToInt32(val any) (int32, bool) {
+	maxInt32Bit := int32((1 << 31) - 1)
 	switch v := val.(type) {
 	case int32:
 		return v, true
 	case int:
-		return int32(v), v >= -2147483648 && v <= 2147483647
+		vt := int32(v)
+		return vt, vt >= -maxInt32Bit && vt <= maxInt32Bit
 	case string:
 		i, err := strconv.ParseInt(v, 10, 32)
 		return int32(i), err == nil

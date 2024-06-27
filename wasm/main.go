@@ -33,7 +33,10 @@ func match(this js.Value, args []js.Value) interface{} {
 	if err != nil {
 		return err.Error()
 	}
-	return condition.Match()
-	bt, _ := json.Marshal(condition)
-	return string(bt)
+	var jsonData map[string]any
+	err = json.Unmarshal([]byte(data), &jsonData)
+	if err != nil {
+		return err
+	}
+	return condition.Match(jsonData)
 }
