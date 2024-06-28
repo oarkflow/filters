@@ -7,7 +7,8 @@ import (
 	"github.com/oarkflow/dipper"
 	"github.com/oarkflow/expr"
 
-	"github.com/oarkflow/filters/convert"
+	"github.com/oarkflow/convert"
+
 	"github.com/oarkflow/filters/utils"
 )
 
