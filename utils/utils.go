@@ -11,17 +11,6 @@ import (
 	"github.com/oarkflow/date"
 )
 
-func GetFieldName(v reflect.Value, fieldName string) reflect.Value {
-	t := v.Type()
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		if field.Name == fieldName || field.Tag.Get("json") == fieldName {
-			return v.Field(i)
-		}
-	}
-	return reflect.Value{}
-}
-
 func Compare(a, b any) int {
 	switch a := a.(type) {
 	case int:

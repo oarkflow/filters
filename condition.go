@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/oarkflow/dipper"
 	"github.com/oarkflow/expr"
 
 	"github.com/oarkflow/filters/convert"
@@ -38,18 +39,16 @@ func Match[T any](item T, filter *Filter) bool {
 }
 
 func match[T any](item T, filter *Filter) bool {
-	if filter.validated {
-		if filter.err != nil {
-			return false
-		}
-	} else {
+	if !filter.validated {
 		if filter.Validate() != nil {
 			return false
 		}
 	}
-	fieldVal := reflect.ValueOf(item)
-	fieldValue := getFieldValue(fieldVal, filter.Field)
-	if !fieldValue.IsValid() {
+	if filter.err != nil {
+		return false
+	}
+	fieldValue, err := dipper.Get(item, filter.Field)
+	if err != nil {
 		return false
 	}
 	val, err := resolveFilterValue(item, filter.Value)
@@ -58,43 +57,43 @@ func match[T any](item T, filter *Filter) bool {
 	}
 	switch filter.Operator {
 	case Equal:
-		return checkEq(fieldValue.Interface(), val)
+		return checkEq(fieldValue, val)
 	case NotEqual:
-		return checkNeq(fieldValue.Interface(), val)
+		return checkNeq(fieldValue, val)
 	case GreaterThan:
-		return checkGt(fieldValue.Interface(), val)
+		return checkGt(fieldValue, val)
 	case LessThan:
-		return checkLt(fieldValue.Interface(), val)
+		return checkLt(fieldValue, val)
 	case GreaterThanEqual:
-		return checkGte(fieldValue.Interface(), val)
+		return checkGte(fieldValue, val)
 	case LessThanEqual:
-		return checkLte(fieldValue.Interface(), val)
+		return checkLte(fieldValue, val)
 	case Between:
-		return checkBetween(fieldValue.Interface(), val)
+		return checkBetween(fieldValue, val)
 	case In:
-		return checkIn(fieldValue.Interface(), val)
+		return checkIn(fieldValue, val)
 	case NotIn:
-		return checkNotIn(fieldValue.Interface(), val)
+		return checkNotIn(fieldValue, val)
 	case Contains:
-		return checkContains(fieldValue.Interface(), val)
+		return checkContains(fieldValue, val)
 	case NotContains:
-		return checkNotContains(fieldValue.Interface(), val)
+		return checkNotContains(fieldValue, val)
 	case StartsWith:
-		return checkStartsWith(fieldValue.Interface(), val)
+		return checkStartsWith(fieldValue, val)
 	case EndsWith:
-		return checkEndsWith(fieldValue.Interface(), val)
+		return checkEndsWith(fieldValue, val)
 	case NotStartsWith:
-		return !checkStartsWith(fieldValue.Interface(), val)
+		return !checkStartsWith(fieldValue, val)
 	case NotEndsWith:
-		return !checkEndsWith(fieldValue.Interface(), val)
+		return !checkEndsWith(fieldValue, val)
 	case IsZero:
-		return fieldValue.IsZero()
+		return reflect.ValueOf(fieldValue).IsZero()
 	case NotZero:
-		return !fieldValue.IsZero()
+		return !reflect.ValueOf(fieldValue).IsZero()
 	case IsNull:
-		return fieldValue.IsNil()
+		return reflect.ValueOf(fieldValue).IsNil()
 	case NotNull:
-		return !fieldValue.IsNil()
+		return !reflect.ValueOf(fieldValue).IsNil()
 	}
 	return false
 }
@@ -134,25 +133,6 @@ func resolveFilterValue(fieldVal, value any) (any, error) {
 	default:
 		return value, nil
 	}
-}
-
-func getFieldValue(fieldVal reflect.Value, fieldName string) reflect.Value {
-	if fieldVal.Kind() == reflect.Map {
-		mapKey := reflect.ValueOf(fieldName)
-		if !mapKey.IsValid() {
-			return mapKey
-		}
-		fieldValue := fieldVal.MapIndex(mapKey)
-		if !fieldValue.IsValid() {
-			return fieldValue
-		}
-		return fieldValue
-	}
-	fieldValue := utils.GetFieldName(fieldVal, fieldName)
-	if !fieldValue.IsValid() {
-		return fieldValue
-	}
-	return fieldValue
 }
 
 func checkEq(val, value any) bool {

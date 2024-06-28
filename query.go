@@ -31,7 +31,7 @@ func ParseQuery(queryString string, exceptFields ...string) (filters []*Filter, 
 				operator := parts[1]
 				opValue := parts[2]
 				if _, exists := validOperators[Operator(strings.ToLower(operator))]; !exists {
-					return nil, errors.New("invalid operator")
+					return nil, errors.New("invalid operator " + operator)
 				}
 				// For between operator, split values into two parts
 				var val any
