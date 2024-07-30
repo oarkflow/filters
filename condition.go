@@ -1,7 +1,9 @@
 package filters
 
 import (
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/oarkflow/dipper"
@@ -73,6 +75,8 @@ func match[T any](item T, filter *Filter) bool {
 		return checkBetween(fieldValue, val)
 	case In:
 		return checkIn(fieldValue, val)
+	case EqualCount:
+		return checkEqCount(fieldValue, val)
 	case NotIn:
 		return checkNotIn(fieldValue, val)
 	case Contains:
@@ -134,6 +138,30 @@ func resolveFilterValue(fieldVal, value any) (any, error) {
 	default:
 		return value, nil
 	}
+}
+
+func checkEqCount(val, value any) bool {
+	valKind := reflect.ValueOf(val)
+	if valKind.Kind() != reflect.Slice {
+		if val == nil {
+			return false
+		}
+		var dArray []any
+		dArray = append(dArray, val)
+		valKind = reflect.ValueOf(dArray)
+	}
+	var gtVal int
+	switch v := value.(type) {
+	case []any:
+		gtVal = len(v)
+	default:
+		g, err := strconv.Atoi(fmt.Sprintf("%v", value))
+		if err != nil {
+			return false
+		}
+		gtVal = g
+	}
+	return valKind.Len() == gtVal && valKind.Len() != 0
 }
 
 func checkEq(val, value any) bool {

@@ -105,22 +105,7 @@ func ParseTime(s any, layouts ...string) (t time.Time, err error) {
 		case time.Time:
 			return s, nil
 		case string:
-			str = s
-			switch len(s) {
-			case 8:
-				layout = "20060102"
-			case 10:
-				layout = "2006-01-02"
-			case 13:
-				layout = "2006-01-02 15"
-			case 16:
-				layout = "2006-01-02 15:04"
-			case 19:
-				layout = "2006-01-02 15:04:05"
-			case 20: // time.RFC3339
-				layout = "2006-01-02T15:04:05Z07:00"
-			}
-			break
+			return date.Parse(s)
 		case int:
 			return time.Unix(int64(s), 0), nil
 		case int64:
