@@ -14,10 +14,11 @@ type Condition interface {
 }
 
 type Sequence struct {
-	Node     Condition
-	Operator Boolean
-	Next     Condition
-	Result   bool
+	Node      Condition
+	Operator  Boolean
+	Next      Condition
+	Result    bool
+	Condition string
 }
 
 func (s *Sequence) Match(data any) bool {
@@ -580,6 +581,7 @@ func ParseSQL(sql string) (*Sequence, error) {
 	if err != nil {
 		return nil, err
 	}
+	filterGroup.Condition = sql
 	return filterGroup, nil
 }
 
