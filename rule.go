@@ -13,7 +13,7 @@ type Condition interface {
 	Match(data any) bool
 }
 
-type Sequence struct {
+type Rule struct {
 	Node      Condition
 	Operator  Boolean
 	Next      Condition
@@ -21,7 +21,15 @@ type Sequence struct {
 	Condition string
 }
 
-func (s *Sequence) Match(data any) bool {
+func NewRule() *Rule {
+	return &Rule{}
+}
+
+func NewRuleNode(operator Boolean, condition Condition) *Rule {
+	return &Rule{Node: condition, Operator: operator}
+}
+
+func (s *Rule) Match(data any) bool {
 	matched := s.Node.Match(data)
 	if s.Operator == AND && !matched {
 		return false
@@ -38,7 +46,47 @@ func (s *Sequence) Match(data any) bool {
 	return matchedNext
 }
 
-func FilterCondition[T any](data []T, expr *Sequence) (result []T) {
+// AddCondition method to add new conditions to the sequence
+func (s *Rule) AddCondition(operator Boolean, conditions ...Condition) {
+	var condition Condition
+
+	if len(conditions) == 1 {
+		condition = conditions[0]
+	} else if len(conditions) > 1 {
+		condition = NewFilterGroup(operator, false, conditions...)
+	}
+
+	if s.Node == nil {
+		s.Node = condition
+		s.Operator = operator
+	} else if s.Next == nil {
+		s.Next = NewRuleNode(operator, condition)
+	} else {
+		nextSequence, ok := s.Next.(*Rule)
+		if !ok {
+			nextSequence = NewRuleNode(operator, s.Next)
+			s.Next = nextSequence
+		}
+		nextSequence.AddCondition(operator, condition)
+	}
+}
+
+func ParseSQL(sql string) (*Rule, error) {
+	sql = splitByWhere(sql)
+	tokens, err := tokenize(sql)
+	if err != nil {
+		return nil, err
+	}
+
+	filterGroup, _, err := parseFilterGroup(tokens)
+	if err != nil {
+		return nil, err
+	}
+	filterGroup.Condition = sql
+	return filterGroup, nil
+}
+
+func FilterCondition[T any](data []T, expr *Rule) (result []T) {
 	for _, d := range data {
 		if expr.Match(d) {
 			result = append(result, d)
@@ -369,116 +417,9 @@ func parseFilter(tokens []token) (*Filter, Boolean, int, error) {
 	return nil, "", 0, errors.New("unexpected token")
 }
 
-func parseBetween(p *parser, field string) (*Filter, Boolean, int, error) {
-	operator := Between
-
-	tok, ok := p.nextToken()
-	if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-		return nil, "", 0, errors.New("expected value")
-	}
-	field1 := tok.value
-
-	tok, ok = p.nextToken()
-	if !ok || tok.value != "AND" {
-		return nil, "", 0, errors.New("expected AND operator")
-	}
-
-	tok, ok = p.nextToken()
-	if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-		return nil, "", 0, errors.New("expected value")
-	}
-	field2 := tok.value
-
-	return NewFilter(field, operator, []any{field1, field2}), "", p.pos, nil
-}
-
-func parseLike(p *parser, field string) (*Filter, Boolean, int, error) {
-	tok, ok := p.nextToken()
-	if !ok || !slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-		return nil, "", 0, errors.New("expected value")
-	}
-	val := strings.Trim(tok.value, "%")
-	switch {
-	case strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%"):
-		return NewFilter(field, Contains, val), "", p.pos, nil
-	case strings.HasPrefix(tok.value, "%"):
-		return NewFilter(field, EndsWith, val), "", p.pos, nil
-	case strings.HasSuffix(tok.value, "%"):
-		return NewFilter(field, StartsWith, val), "", p.pos, nil
-	}
-	return nil, "", 0, errors.New("unexpected LIKE pattern")
-}
-
-func parseIn(p *parser, field string) (*Filter, Boolean, int, error) {
-	var in []any
-	tok, ok := p.nextToken()
-	if !ok || tok.typ != tokenLParen {
-		return nil, "", 0, errors.New("expected '('")
-	}
-	for {
-		tok, _ = p.nextToken()
-		if tok.typ == tokenRParen {
-			break
-		}
-		if slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-			in = append(in, tok.value)
-		}
-	}
-	return NewFilter(field, In, in), "", p.pos, nil
-}
-
-func parseNot(p *parser, field string) (*Filter, Boolean, int, error) {
-	tok, ok := p.nextToken()
-	if !ok {
-		return nil, "", 0, errors.New("unexpected error")
-	}
-	switch tok.value {
-	case "IN":
-		return parseNotIn(p, field)
-	case "LIKE":
-		return parseNotLike(p, field)
-	}
-	return nil, "", 0, errors.New("unexpected NOT token")
-}
-
-func parseNotIn(p *parser, field string) (*Filter, Boolean, int, error) {
-	var in []any
-	tok, ok := p.nextToken()
-	if !ok || tok.typ != tokenLParen {
-		return nil, "", 0, errors.New("expected '('")
-	}
-	for {
-		tok, _ = p.nextToken()
-		if tok.typ == tokenRParen {
-			break
-		}
-		if slices.Contains([]tokenType{tokenIdentifier, tokenValue, tokenVariable}, tok.typ) {
-			in = append(in, tok.value)
-		}
-	}
-	return NewFilter(field, NotIn, in), "", p.pos, nil
-}
-
-func parseNotLike(p *parser, field string) (*Filter, Boolean, int, error) {
-	tok, ok := p.nextToken()
-	if !ok || tok.typ != tokenIdentifier {
-		return nil, "", 0, errors.New("expected value")
-	}
-	val := strings.Trim(tok.value, "%")
-	switch {
-	case strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%"):
-		return NewFilter(field, NotContains, val), "", p.pos, nil
-	case strings.HasPrefix(tok.value, "%"):
-		return &Filter{Field: field, Operator: EndsWith, Value: val, Reverse: true}, "", p.pos, nil
-	case strings.HasSuffix(tok.value, "%"):
-		return &Filter{Field: field, Operator: StartsWith, Value: val, Reverse: true}, "", p.pos, nil
-	}
-	return nil, "", 0, errors.New("unexpected LIKE pattern")
-}
-
-func parseFilterGroup(tokens []token) (*Sequence, int, error) {
+func parseFilterGroup(tokens []token) (*Rule, int, error) {
 	p := &parser{tokens: tokens}
-	seq := &Sequence{}
+	seq := &Rule{}
 	var operator Boolean
 
 	for {
@@ -531,7 +472,7 @@ func parseFilterGroup(tokens []token) (*Sequence, int, error) {
 	return seq, p.pos, nil
 }
 
-func FirstTermFilter(seq *Sequence) (*Filter, error) {
+func FirstTermFilter(seq *Rule) (*Filter, error) {
 	if seq == nil {
 		return nil, errors.New("sequence is nil")
 	}
@@ -544,7 +485,7 @@ func FirstTermFilter(seq *Sequence) (*Filter, error) {
 			if n.Operator == Equal {
 				return n
 			}
-		case *Sequence:
+		case *Rule:
 			if n.Node != nil {
 				if filter := traverse(n.Node); filter != nil {
 					return filter
@@ -568,21 +509,6 @@ func FirstTermFilter(seq *Sequence) (*Filter, error) {
 	}
 
 	return nil, errors.New("no equal filter found")
-}
-
-func ParseSQL(sql string) (*Sequence, error) {
-	sql = splitByWhere(sql)
-	tokens, err := tokenize(sql)
-	if err != nil {
-		return nil, err
-	}
-
-	filterGroup, _, err := parseFilterGroup(tokens)
-	if err != nil {
-		return nil, err
-	}
-	filterGroup.Condition = sql
-	return filterGroup, nil
 }
 
 var (

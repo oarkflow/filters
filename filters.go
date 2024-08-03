@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/oarkflow/xid"
+
 	"github.com/oarkflow/filters/utils"
 )
 
 type Filter struct {
-	Field     string
-	Operator  Operator
-	Value     any
-	Reverse   bool
+	Key       string   `json:"key"`
+	Field     string   `json:"field"`
+	Operator  Operator `json:"operator"`
+	Value     any      `json:"value"`
+	Reverse   bool     `json:"reverse"`
 	err       error
 	validated bool
 }
@@ -23,8 +26,12 @@ func (filter *Filter) Match(data any) bool {
 
 type FilterGroup struct {
 	Operator Boolean
-	Filters  []*Filter
+	Filters  []Condition
 	Reverse  bool
+}
+
+func NewFilterGroup(operator Boolean, reverse bool, conditions ...Condition) *FilterGroup {
+	return &FilterGroup{Operator: operator, Filters: conditions, Reverse: reverse}
 }
 
 func (group *FilterGroup) Match(data any) bool {
@@ -123,7 +130,7 @@ func MatchGroup[T any](item T, group *FilterGroup) bool {
 	case AND:
 		matched := true
 		for _, filter := range group.Filters {
-			if !Match(item, filter) {
+			if !Match(item, filter.(*Filter)) {
 				matched = false
 				break
 			}
@@ -135,7 +142,7 @@ func MatchGroup[T any](item T, group *FilterGroup) bool {
 	case OR:
 		matched := false
 		for _, filter := range group.Filters {
-			if Match(item, filter) {
+			if Match(item, filter.(*Filter)) {
 				matched = true
 			}
 		}
@@ -148,10 +155,16 @@ func MatchGroup[T any](item T, group *FilterGroup) bool {
 	}
 }
 
-func NewFilter(field string, operator Operator, value any) *Filter {
-	return &Filter{
+func NewFilter(field string, operator Operator, value any, keys ...string) *Filter {
+	filter := &Filter{
 		Field:    field,
 		Operator: operator,
 		Value:    value,
 	}
+	if len(keys) > 0 {
+		filter.Key = keys[0]
+	} else {
+		filter.Key = xid.New().String()
+	}
+	return filter
 }
