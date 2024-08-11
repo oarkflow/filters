@@ -254,3 +254,15 @@ func Contains(sl, data any) bool {
 
 	return false
 }
+
+func BuiltinAge(params ...any) (any, error) {
+	if len(params) != 1 {
+		return false, fmt.Errorf("age expects 1 argument")
+	}
+	left := params[0]
+	t, err := ParseTime(left)
+	if err != nil {
+		return nil, err
+	}
+	return date.CalculateToNow(t), err
+}

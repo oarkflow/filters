@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/oarkflow/date"
 	"github.com/oarkflow/expr"
 	"github.com/oarkflow/filters"
 	"github.com/oarkflow/filters/utils"
@@ -20,20 +19,8 @@ var data1 = map[string]any{
 	},
 }
 
-func builtinAge(params ...any) (any, error) {
-	if len(params) != 1 {
-		return false, fmt.Errorf("age expects 1 argument")
-	}
-	left := params[0]
-	t, err := utils.ParseTime(left)
-	if err != nil {
-		return nil, err
-	}
-	return date.CalculateToNow(t), err
-}
-
 func main() {
-	expr.AddFunction("age", builtinAge)
+	expr.AddFunction("age", utils.BuiltinAge)
 
 	lookup := &filters.Lookup{
 		Data: []map[string]any{
