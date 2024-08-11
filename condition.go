@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/oarkflow/dipper"
@@ -39,6 +40,7 @@ var (
 		LesserThanEqualCount:  {},
 		GreaterThanEqualCount: {},
 	}
+	countOperators = []Operator{GreaterThanEqualCount, GreaterThanCount, LesserThanEqualCount, LesserThanCount, NotEqualCount, EqualCount}
 )
 
 func Match[T any](item T, filter *Filter) bool {
@@ -61,14 +63,9 @@ func validatedCount(input string, lookupData any) bool {
 	return converted
 }
 
-func validateCount(op string, val interface{}, lookupData, fieldValue interface{}) bool {
-	if lookupData != nil {
-		return validatedCount(fmt.Sprintf("len(data) %s %v", op, val), lookupData)
-	}
-	if fieldValue != nil {
-		return validatedCount(fmt.Sprintf("len(data) %s %v", op, val), fieldValue)
-	}
-	return false
+func validateCount(op string, val any, lookupData, fieldValue any) bool {
+	fieldValue = utils.FilterSlice(lookupData, fieldValue)
+	return validatedCount(fmt.Sprintf("len(data) %s %v", op, val), fieldValue)
 }
 
 func match[T any](item T, filter *Filter) bool {
@@ -93,7 +90,7 @@ func match[T any](item T, filter *Filter) bool {
 		if filter.Lookup.Data != nil {
 			lookupData = filter.Lookup.Data
 		} else if filter.Lookup.Handler != nil {
-			rs, err := filter.Lookup.Handler()
+			rs, err := filter.Lookup.Handler(filter.Lookup.FilterInHandler)
 			if err != nil {
 				return false
 			}
@@ -107,6 +104,9 @@ func match[T any](item T, filter *Filter) bool {
 			}
 			lookupData = rs
 		}
+	}
+	if !slices.Contains(countOperators, filter.Operator) && lookupData != nil {
+		val = lookupData
 	}
 	switch filter.Operator {
 	case Equal:
@@ -141,7 +141,6 @@ func match[T any](item T, filter *Filter) bool {
 			return false
 		}
 		r, err := expr.Eval(v, item)
-		fmt.Println(r, err)
 		if err != nil || r == nil {
 			return false
 		}

@@ -266,3 +266,33 @@ func BuiltinAge(params ...any) (any, error) {
 	}
 	return date.CalculateToNow(t), err
 }
+
+func FilterSlice(lookupData, fieldValue any) any {
+	// Get the reflect.Value of lookupData and fieldValue
+	lookupVal := reflect.ValueOf(lookupData)
+	fieldVal := reflect.ValueOf(fieldValue)
+
+	// Ensure both are slices
+	if lookupVal.Kind() != reflect.Slice || fieldVal.Kind() != reflect.Slice {
+		fmt.Println("Both lookupData and fieldValue must be slices")
+		return fieldValue
+	}
+
+	// Create a map to store the elements of lookupData for quick lookup
+	lookupMap := make(map[any]struct{})
+	for i := 0; i < lookupVal.Len(); i++ {
+		val := lookupVal.Index(i).Interface()
+		lookupMap[val] = struct{}{}
+	}
+
+	// Filter fieldValue to only include elements that are in lookupMap
+	filtered := reflect.MakeSlice(fieldVal.Type(), 0, 0)
+	for i := 0; i < fieldVal.Len(); i++ {
+		val := fieldVal.Index(i).Interface()
+		if _, exists := lookupMap[val]; exists {
+			filtered = reflect.Append(filtered, fieldVal.Index(i))
+		}
+	}
+
+	return filtered.Interface()
+}

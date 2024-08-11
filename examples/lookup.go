@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/oarkflow/expr"
+
 	"github.com/oarkflow/filters"
 	"github.com/oarkflow/filters/utils"
 )
@@ -45,7 +47,7 @@ func main() {
 		},
 		Condition: "map(filter(lookup, age(data.patient.dob) >= .min_age && age(data.patient.dob) <= .max_age), .salary)",
 	}
-	filter := filters.NewFilter("patient.salary", filters.GreaterThanEqualCount, 1)
+	filter := filters.NewFilter("patient.salary", filters.In, nil)
 	filter.SetLookup(lookup)
 	fmt.Println(filters.Match(data1, filter))
 }

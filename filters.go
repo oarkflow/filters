@@ -11,11 +11,12 @@ import (
 )
 
 type Lookup struct {
-	Data      any `json:"data"`
-	Handler   func() (any, error)
-	Type      string `json:"type"`
-	Source    string `json:"source"`
-	Condition string `json:"condition"`
+	Data            any `json:"data"`
+	Handler         func(string) (any, error)
+	Type            string `json:"type"`
+	Source          string `json:"source"`
+	Condition       string `json:"condition"`
+	FilterInHandler string `json:"filter_in_handler"`
 }
 
 type Filter struct {
@@ -74,7 +75,7 @@ func (filter *Filter) Validate() error {
 			return filter.err
 		}
 	}
-	if filter.Operator == In {
+	if filter.Operator == In && filter.Lookup == nil {
 		if reflect.TypeOf(filter.Value).Kind() != reflect.Slice {
 			filter.err = errors.New("in filter must have a slice as value")
 			return filter.err

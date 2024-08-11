@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/oarkflow/expr"
+
 	"github.com/oarkflow/filters"
 	"github.com/oarkflow/filters/utils"
 )
@@ -35,6 +37,12 @@ var requestData = []byte(`
                     "downcode": [],
                     "special": [],
                     "cpt": [
+                        {
+                            "procedure_num": "AN65450",
+                            "procedure_qty": 1,
+                            "billing_provider": null,
+                            "secondary_provider": null
+                        },
                         {
                             "procedure_num": "AN65450",
                             "procedure_qty": 1,
@@ -83,7 +91,8 @@ func main() {
 				"work_item_id": 33,
 			},
 		},
-		Condition: "map(filter(lookup, .charge_type == 'ED_PROFEE'), .code)",
+		FilterInHandler: "",
+		Condition:       "map(filter(lookup, .charge_type == 'ED_PROFEE'), .code)",
 	}
 	filter.SetLookup(lookup)
 	fmt.Println(filters.Match(data, filter))
