@@ -24,6 +24,8 @@ const (
 	Contains              Operator = "contains"
 	NotContains           Operator = "ncontains"
 	Between               Operator = "between"
+	Expression            Operator = "expr"
+	Pattern               Operator = "pattern"
 	In                    Operator = "in"
 	StartsWith            Operator = "startswith"
 	NotStartsWith         Operator = "nstartswith"

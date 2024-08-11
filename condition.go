@@ -3,6 +3,7 @@ package filters
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,8 @@ var (
 		NotEqual:         {},
 		Contains:         {},
 		NotContains:      {},
+		Expression:       {},
+		Pattern:          {},
 		Between:          {},
 		In:               {},
 		StartsWith:       {},
@@ -73,6 +76,31 @@ func match[T any](item T, filter *Filter) bool {
 		return checkLte(fieldValue, val)
 	case Between:
 		return checkBetween(fieldValue, val)
+	case Expression:
+		v, ok := filter.Value.(string)
+		if !ok {
+			return false
+		}
+		r, err := expr.Eval(v, item)
+		fmt.Println(r, err)
+		if err != nil || r == nil {
+			return false
+		}
+		return true
+	case Pattern:
+		v, ok := filter.Value.(string)
+		if !ok {
+			return false
+		}
+		re, err := regexp.Compile(v)
+		if err != nil {
+			return false
+		}
+		vt, ok := fieldValue.(string)
+		if !ok {
+			return false
+		}
+		return re.MatchString(vt)
 	case In:
 		return checkIn(fieldValue, val)
 	case EqualCount:

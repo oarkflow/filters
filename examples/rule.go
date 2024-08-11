@@ -10,7 +10,7 @@ import (
 func main() {
 	seq := filters.NewRule()
 	filter1 := filters.NewFilter("LoggedInAt", filters.Between, []string{"{{CreatedAt}}", "{{VerifiedAt}}"})
-	filter2 := filters.NewFilter("Name", filters.NotEndsWith, "Jane")
+	filter2 := filters.NewFilter("Name", filters.Expression, "Name=='Jane Doe'")
 	seq.AddCondition(filters.AND, filter1, filter2)
 
 	// Sample data (struct type)

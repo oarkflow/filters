@@ -19,9 +19,13 @@ func main() {
 		{"Age": 35, "City": "Chicago", "CreatedAt": "2021-12-25 08:45:00", "VerifiedAt": "2021-12-25 08:45:00", "LoggedInAt": "2021-12-25 08:45:00", "Name": "Alice Smith"},
 		{"Age": 40, "City": "Houston", "CreatedAt": "2022-11-11 20:15:00", "VerifiedAt": "2022-11-11 20:15:00", "LoggedInAt": "2022-11-11 20:15:00", "Name": "Bob Johnson"},
 	}
+	var condition []filters.Condition
+	for _, item := range filter {
+		condition = append(condition, item)
+	}
 	group2 := &filters.FilterGroup{
 		Operator: filters.AND,
-		Filters:  filter,
+		Filters:  condition,
 	}
 	// Apply filters to map data
 	filteredMapData := filters.ApplyGroup(mapData, group2)
@@ -52,9 +56,9 @@ func structData() {
 	}
 	group2 := &filters.FilterGroup{
 		Operator: filters.AND,
-		Filters: []*filters.Filter{
-			{Field: "LoggedInAt", Operator: filters.Between, Value: []any{"{{CreatedAt}}", "{{VerifiedAt}}"}},
-			{Field: "Name", Operator: filters.StartsWith, Value: "Jane"},
+		Filters: []filters.Condition{
+			&filters.Filter{Field: "LoggedInAt", Operator: filters.Between, Value: []any{"{{CreatedAt}}", "{{VerifiedAt}}"}},
+			&filters.Filter{Field: "Name", Operator: filters.StartsWith, Value: "Jane"},
 		},
 	}
 	// Apply filters to struct data
