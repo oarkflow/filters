@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/oarkflow/dipper"
@@ -17,22 +16,28 @@ import (
 
 var (
 	validOperators = map[Operator]struct{}{
-		Equal:            {},
-		LessThan:         {},
-		LessThanEqual:    {},
-		GreaterThan:      {},
-		GreaterThanEqual: {},
-		NotEqual:         {},
-		Contains:         {},
-		NotContains:      {},
-		Expression:       {},
-		Pattern:          {},
-		Between:          {},
-		In:               {},
-		StartsWith:       {},
-		NotStartsWith:    {},
-		EndsWith:         {},
-		NotEndsWith:      {},
+		In:                    {},
+		Equal:                 {},
+		Pattern:               {},
+		Between:               {},
+		LessThan:              {},
+		NotEqual:              {},
+		Contains:              {},
+		EndsWith:              {},
+		Expression:            {},
+		EqualCount:            {},
+		StartsWith:            {},
+		NotContains:           {},
+		GreaterThan:           {},
+		NotEndsWith:           {},
+		LessThanEqual:         {},
+		NotEqualCount:         {},
+		NotStartsWith:         {},
+		LesserThanCount:       {},
+		GreaterThanEqual:      {},
+		GreaterThanCount:      {},
+		LesserThanEqualCount:  {},
+		GreaterThanEqualCount: {},
 	}
 )
 
@@ -42,6 +47,28 @@ func Match[T any](item T, filter *Filter) bool {
 		return !matched
 	}
 	return matched
+}
+
+func validatedCount(input string, lookupData any) bool {
+	rs, err := expr.Eval(input, map[string]any{"data": lookupData})
+	if err != nil {
+		return false
+	}
+	converted, done := convert.ToBool(rs)
+	if !done {
+		return false
+	}
+	return converted
+}
+
+func validateCount(op string, val interface{}, lookupData, fieldValue interface{}) bool {
+	if lookupData != nil {
+		return validatedCount(fmt.Sprintf("len(data) %s %v", op, val), lookupData)
+	}
+	if fieldValue != nil {
+		return validatedCount(fmt.Sprintf("len(data) %s %v", op, val), fieldValue)
+	}
+	return false
 }
 
 func match[T any](item T, filter *Filter) bool {
@@ -61,6 +88,26 @@ func match[T any](item T, filter *Filter) bool {
 	if err != nil {
 		return false
 	}
+	var lookupData any
+	if filter.Lookup != nil {
+		if filter.Lookup.Data != nil {
+			lookupData = filter.Lookup.Data
+		} else if filter.Lookup.Handler != nil {
+			rs, err := filter.Lookup.Handler()
+			if err != nil {
+				return false
+			}
+			lookupData = rs
+		}
+		if filter.Lookup.Condition != "" {
+			lookupData = map[string]any{"data": item, "lookup": lookupData}
+			rs, err := expr.Eval(filter.Lookup.Condition, lookupData)
+			if err != nil {
+				return false
+			}
+			lookupData = rs
+		}
+	}
 	switch filter.Operator {
 	case Equal:
 		return checkEq(fieldValue, val)
@@ -76,6 +123,18 @@ func match[T any](item T, filter *Filter) bool {
 		return checkLte(fieldValue, val)
 	case Between:
 		return checkBetween(fieldValue, val)
+	case GreaterThanEqualCount:
+		return validateCount(">=", val, lookupData, fieldValue)
+	case GreaterThanCount:
+		return validateCount(">", val, lookupData, fieldValue)
+	case LesserThanEqualCount:
+		return validateCount("<=", val, lookupData, fieldValue)
+	case LesserThanCount:
+		return validateCount("<", val, lookupData, fieldValue)
+	case NotEqualCount:
+		return validateCount("!=", val, lookupData, fieldValue)
+	case EqualCount:
+		return validateCount("==", val, lookupData, fieldValue)
 	case Expression:
 		v, ok := filter.Value.(string)
 		if !ok {
@@ -103,8 +162,6 @@ func match[T any](item T, filter *Filter) bool {
 		return re.MatchString(vt)
 	case In:
 		return checkIn(fieldValue, val)
-	case EqualCount:
-		return checkEqCount(fieldValue, val)
 	case NotIn:
 		return checkNotIn(fieldValue, val)
 	case Contains:
@@ -168,62 +225,34 @@ func resolveFilterValue(fieldVal, value any) (any, error) {
 	}
 }
 
-func checkEqCount(val, value any) bool {
-	valKind := reflect.ValueOf(val)
-	if valKind.Kind() != reflect.Slice {
-		if val == nil {
-			return false
+func checkComparison(val, value any, isEqual bool) bool {
+	var comparisonResult bool
+	switch val := val.(type) {
+	case string:
+		data, ok := convert.ToString(value)
+		if !ok {
+			return ok
 		}
-		var dArray []any
-		dArray = append(dArray, val)
-		valKind = reflect.ValueOf(dArray)
-	}
-	var gtVal int
-	switch v := value.(type) {
-	case []any:
-		gtVal = len(v)
+		comparisonResult = strings.EqualFold(val, data)
 	default:
-		g, err := strconv.Atoi(fmt.Sprintf("%v", value))
-		if err != nil {
-			return false
+		data, ok := convert.To(val, value)
+		if !ok {
+			return ok
 		}
-		gtVal = g
+		comparisonResult = val == data
 	}
-	return valKind.Len() == gtVal && valKind.Len() != 0
+	if isEqual {
+		return comparisonResult
+	}
+	return !comparisonResult
 }
 
 func checkEq(val, value any) bool {
-	switch val := val.(type) {
-	case string:
-		data, ok := convert.ToString(value)
-		if !ok {
-			return ok
-		}
-		return strings.EqualFold(val, data)
-	default:
-		data, ok := convert.To(val, value)
-		if !ok {
-			return ok
-		}
-		return val == data
-	}
+	return checkComparison(val, value, true)
 }
 
 func checkNeq(val, value any) bool {
-	switch val := val.(type) {
-	case string:
-		data, ok := convert.ToString(value)
-		if !ok {
-			return ok
-		}
-		return !strings.EqualFold(val, data)
-	default:
-		data, ok := convert.To(val, value)
-		if !ok {
-			return ok
-		}
-		return val != data
-	}
+	return checkComparison(val, value, false)
 }
 
 func checkGt(data, value any) bool {

@@ -46,7 +46,9 @@ func main() {
 		"data":         data,
 	}
 	// result, err := expr.Eval("work_item_id in map(filter(data.WorkItemClientRefs, .ClientRef == null || .ClientRef == ''), .WorkItemID)", env)
-	result, err := expr.Eval("work_item_id in map(filter(data.WorkItemClientRefs, .ClientRef == null || .ClientRef == ''), .WorkItemID)", env)
+	// result, err := expr.Eval("work_item_id in map(filter(data.WorkItemClientRefs, .ClientRef == null || .ClientRef == ''), .WorkItemID)", env)
+	// result, err := expr.Eval("filter(data.WorkItemClientRefs, .ClientRef == null || .ClientRef == '')", env)
+	result, err := expr.Eval("len(data.WorkItemClientRefs)", env)
 	if err != nil {
 		fmt.Printf("Error running expression: %v\n", err)
 		return

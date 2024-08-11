@@ -10,18 +10,31 @@ import (
 	"github.com/oarkflow/filters/utils"
 )
 
+type Lookup struct {
+	Data      any `json:"data"`
+	Handler   func() (any, error)
+	Type      string `json:"type"`
+	Source    string `json:"source"`
+	Condition string `json:"condition"`
+}
+
 type Filter struct {
 	Key       string   `json:"key"`
 	Field     string   `json:"field"`
 	Operator  Operator `json:"operator"`
 	Value     any      `json:"value"`
 	Reverse   bool     `json:"reverse"`
+	Lookup    *Lookup  `json:"lookup"`
 	err       error
 	validated bool
 }
 
 func (filter *Filter) Match(data any) bool {
 	return Match(data, filter)
+}
+
+func (filter *Filter) SetLookup(lookup *Lookup) {
+	filter.Lookup = lookup
 }
 
 type FilterGroup struct {
