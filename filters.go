@@ -19,6 +19,7 @@ type Lookup struct {
 
 type Filter struct {
 	Key       string   `json:"key"`
+	FilterKey string   `json:"filter_key"`
 	Field     string   `json:"field"`
 	Operator  Operator `json:"operator"`
 	Value     any      `json:"value"`

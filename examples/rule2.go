@@ -82,7 +82,7 @@ func main() {
 		panic(err)
 	}
 
-	filter := filters.NewFilter("coding.#.details.pro.cpt.#.procedure_num", filters.GreaterThanEqualCount, 1)
+	filter := filters.NewFilter("coding.#.details.pro.cpt.#.procedure_num", filters.GreaterThanCount, 2)
 	lookup := &filters.Lookup{
 		Data: []map[string]any{
 			{
@@ -91,8 +91,7 @@ func main() {
 				"work_item_id": 33,
 			},
 		},
-		FilterInHandler: "",
-		Condition:       "map(filter(lookup, .charge_type == 'ED_PROFEE'), .code)",
+		Condition: "map(filter(lookup, .charge_type == 'ED_PROFEE'), .code)",
 	}
 	filter.SetLookup(lookup)
 	fmt.Println(filters.Match(data, filter))
