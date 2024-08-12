@@ -60,7 +60,7 @@ func struct1Data() {
 		{Age: 35, City: "Chicago", CreatedAt: time.Date(2021, 12, 25, 8, 45, 0, 0, time.UTC), Name: "Alice Smith"},
 		{Age: 40, City: "Houston", CreatedAt: time.Date(2022, 11, 11, 20, 15, 0, 0, time.UTC), Name: "Bob Johnson"},
 	}
-	// Apply filters to struct data
+	// Validate filters to struct data
 	filteredStructData := filters.FilterCondition(structData, condition)
 
 	fmt.Println("Filtered Struct Data")

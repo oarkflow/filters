@@ -6,8 +6,6 @@ import (
 	"reflect"
 
 	"github.com/oarkflow/xid"
-
-	"github.com/oarkflow/filters/utils"
 )
 
 type Lookup struct {
@@ -38,25 +36,12 @@ func (filter *Filter) SetLookup(lookup *Lookup) {
 	filter.Lookup = lookup
 }
 
-type FilterGroup struct {
-	Operator Boolean
-	Filters  []Condition
-	Reverse  bool
-}
-
-func NewFilterGroup(operator Boolean, reverse bool, conditions ...Condition) *FilterGroup {
-	return &FilterGroup{Operator: operator, Filters: conditions, Reverse: reverse}
-}
-
-func (group *FilterGroup) Match(data any) bool {
-	return MatchGroup(data, group)
-}
-
-type Join struct {
-	Left     *FilterGroup
-	Right    *FilterGroup
-	Operator Boolean
-	Reverse  bool
+func Match[T any](item T, filter *Filter) bool {
+	matched := match(item, filter)
+	if filter.Reverse {
+		return !matched
+	}
+	return matched
 }
 
 func (filter *Filter) Validate() error {
@@ -82,108 +67,6 @@ func (filter *Filter) Validate() error {
 		}
 	}
 	return nil
-}
-
-func FilterJoin[T any](data []T, expr Join) ([]T, error) {
-	if expr.Left == nil || expr.Right == nil {
-		return nil, errors.New("missing left or right filter group")
-	}
-
-	leftResult := ApplyGroup(data, expr.Left)
-	rightResult := ApplyGroup(data, expr.Right)
-	switch expr.Operator {
-	case AND:
-		return utils.Intersection(leftResult, rightResult), nil
-	case OR:
-		return utils.Union(leftResult, rightResult), nil
-	default:
-		return nil, errors.New("unsupported boolean operator")
-	}
-}
-
-func MatchJoin[T any](item T, expr Join) bool {
-	if expr.Left == nil || expr.Right == nil {
-		return false
-	}
-	leftResult := MatchGroup(item, expr.Left)
-	rightResult := MatchGroup(item, expr.Right)
-	switch expr.Operator {
-	case AND:
-		if expr.Reverse {
-			return !(leftResult && rightResult)
-		}
-		return leftResult && rightResult
-	case OR:
-		if expr.Reverse {
-			return !(leftResult || rightResult)
-		}
-		return leftResult || rightResult
-	default:
-		return false
-	}
-}
-
-func ApplyGroup[T any](data []T, filterGroups ...*FilterGroup) (result []T) {
-	for _, item := range data {
-		matches := true
-		for _, group := range filterGroups {
-			if !MatchGroup(item, group) {
-				matches = false
-				break
-			}
-		}
-		if matches {
-			result = append(result, item)
-		}
-	}
-	return
-}
-
-func MatchGroup[T any](item T, group *FilterGroup) bool {
-	switch group.Operator {
-	case AND:
-		matched := true
-		for _, filter := range group.Filters {
-			switch filter := filter.(type) {
-			case *FilterGroup:
-				if !MatchGroup(item, filter) {
-					matched = false
-					break
-				}
-			case *Filter:
-				if !Match(item, filter) {
-					matched = false
-					break
-				}
-			}
-		}
-		if group.Reverse {
-			return !matched
-		}
-		return matched
-	case OR:
-		matched := false
-		for _, filter := range group.Filters {
-			switch filter := filter.(type) {
-			case *FilterGroup:
-				if !MatchGroup(item, filter) {
-					matched = false
-					break
-				}
-			case *Filter:
-				if !Match(item, filter) {
-					matched = false
-					break
-				}
-			}
-		}
-		if group.Reverse {
-			return !matched
-		}
-		return matched
-	default:
-		return false
-	}
 }
 
 func NewFilter(field string, operator Operator, value any, keys ...string) *Filter {

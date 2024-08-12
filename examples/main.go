@@ -27,7 +27,7 @@ func main() {
 		Operator: filters.AND,
 		Filters:  condition,
 	}
-	// Apply filters to map data
+	// Validate filters to map data
 	filteredMapData := filters.ApplyGroup(mapData, group2)
 	// Print filtered map data
 	fmt.Println("Filtered Map Data")
@@ -61,7 +61,7 @@ func structData() {
 			&filters.Filter{Field: "Name", Operator: filters.StartsWith, Value: "Jane"},
 		},
 	}
-	// Apply filters to struct data
+	// Validate filters to struct data
 	filteredStructData := filters.ApplyGroup(structData, group2)
 
 	fmt.Println("Filtered Struct Data")

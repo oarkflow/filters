@@ -50,14 +50,6 @@ var (
 	}
 )
 
-func Match[T any](item T, filter *Filter) bool {
-	matched := match(item, filter)
-	if filter.Reverse {
-		return !matched
-	}
-	return matched
-}
-
 func validatedCount(input string, lookupData any) bool {
 	rs, err := expr.Eval(input, map[string]any{"data": lookupData})
 	if err != nil {

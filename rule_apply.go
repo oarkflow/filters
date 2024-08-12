@@ -24,7 +24,7 @@ func (r *Rule) SetErrorResponse(msg, action string) {
 	r.errorResponse = ErrorResponse{ErrorMsg: msg, ErrorAction: action}
 }
 
-func (r *Rule) Apply(data any, callback ...CallbackFn) (any, error) {
+func (r *Rule) Validate(data any, callback ...CallbackFn) (any, error) {
 	var defaultCallbackFn CallbackFn
 	if r.callback != nil {
 		defaultCallbackFn = r.callback
