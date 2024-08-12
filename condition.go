@@ -63,7 +63,10 @@ func validatedCount(input string, lookupData any) bool {
 }
 
 func validateCount(op string, val any, lookupData, fieldValue any) bool {
-	fieldValue = utils.FilterSlice(lookupData, fieldValue)
+	fieldValue, err := utils.FilterSlice(lookupData, fieldValue)
+	if err != nil {
+		return false
+	}
 	return validatedCount(fmt.Sprintf("len(data) %s %v", op, val), fieldValue)
 }
 
@@ -89,7 +92,7 @@ func match[T any](item T, filter *Filter) bool {
 		if filter.Lookup.Data != nil {
 			lookupData = filter.Lookup.Data
 		} else if filter.Lookup.Handler != nil {
-			rs, err := filter.Lookup.Handler(filter.Lookup.HandlerCondition)
+			rs, err := filter.Lookup.Handler(item, filter.Lookup.HandlerCondition)
 			if err != nil {
 				return false
 			}

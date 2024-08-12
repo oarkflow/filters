@@ -267,15 +267,14 @@ func BuiltinAge(params ...any) (any, error) {
 	return date.CalculateToNow(t), err
 }
 
-func FilterSlice(lookupData, fieldValue any) any {
+func FilterSlice(lookupData, fieldValue any) (any, error) {
 	// Get the reflect.Value of lookupData and fieldValue
 	lookupVal := reflect.ValueOf(lookupData)
 	fieldVal := reflect.ValueOf(fieldValue)
 
 	// Ensure both are slices
 	if lookupVal.Kind() != reflect.Slice || fieldVal.Kind() != reflect.Slice {
-		fmt.Println("Both lookupData and fieldValue must be slices")
-		return fieldValue
+		return fieldValue, errors.New("both lookupData and fieldValue must be slices")
 	}
 
 	// Create a map to store the elements of lookupData for quick lookup
@@ -294,5 +293,5 @@ func FilterSlice(lookupData, fieldValue any) any {
 		}
 	}
 
-	return filtered.Interface()
+	return filtered.Interface(), nil
 }

@@ -10,7 +10,7 @@ import (
 
 type Lookup struct {
 	Data             any `json:"data"`
-	Handler          func(string) (any, error)
+	Handler          func(any, string) (any, error)
 	Type             string `json:"type"`
 	Source           string `json:"source"`
 	Condition        string `json:"condition"`
