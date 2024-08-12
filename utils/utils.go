@@ -295,3 +295,16 @@ func FilterSlice(lookupData, fieldValue any) (any, error) {
 
 	return filtered.Interface(), nil
 }
+
+// GetSliceLength returns the length of a slice or an error if the input is not a slice
+func GetSliceLength(data any) (int, error) {
+	val := reflect.ValueOf(data)
+	if val.Kind() != reflect.Slice {
+		return 0, errors.New("provided data is not a slice")
+	}
+	return val.Len(), nil
+}
+
+func IsSlice(data any) bool {
+	return reflect.ValueOf(data).Kind() == reflect.Slice
+}

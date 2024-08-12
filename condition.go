@@ -107,6 +107,15 @@ func match[T any](item T, filter *Filter) bool {
 			lookupData = rs
 		}
 	}
+	if lookupData != nil && utils.IsSlice(lookupData) {
+		lookupLength, err := utils.GetSliceLength(lookupData)
+		if err != nil {
+			return false
+		}
+		if lookupLength == 0 {
+			return true
+		}
+	}
 	if !slices.Contains(countOperators, filter.Operator) && lookupData != nil {
 		val = lookupData
 	}
@@ -282,6 +291,16 @@ func checkBetween(data, value any) bool {
 	return false
 }
 
+// Utility function to handle string-based operations
+func stringOperation(data, value any, op func(string, string) bool) bool {
+	strData, ok1 := data.(string)
+	strValue, ok2 := value.(string)
+	if !ok1 || !ok2 {
+		return false
+	}
+	return op(strings.ToLower(strData), strings.ToLower(strValue))
+}
+
 func checkIn(data, value any) bool {
 	sl, ok := convert.ToSlice(data, value)
 	if !ok {
@@ -291,61 +310,21 @@ func checkIn(data, value any) bool {
 }
 
 func checkNotIn(data, value any) bool {
-	sl, ok := convert.ToSlice(data, value)
-	if !ok {
-		return false
-	}
-	return !utils.Contains(sl, data)
+	return !checkIn(data, value)
 }
 
 func checkContains(data, value any) bool {
-	switch val := data.(type) {
-	case string:
-		switch gtVal := value.(type) {
-		case string:
-			return strings.Contains(strings.ToLower(val), strings.ToLower(gtVal))
-		}
-		return false
-	}
-
-	return false
+	return stringOperation(data, value, strings.Contains)
 }
 
 func checkNotContains(data, value any) bool {
-	switch val := data.(type) {
-	case string:
-		switch gtVal := value.(type) {
-		case string:
-			return !strings.Contains(strings.ToLower(val), strings.ToLower(gtVal))
-		}
-		return false
-	}
-
-	return false
+	return !checkContains(data, value)
 }
 
 func checkStartsWith(data, value any) bool {
-	switch val := data.(type) {
-	case string:
-		switch gtVal := value.(type) {
-		case string:
-			return strings.HasPrefix(strings.ToLower(val), strings.ToLower(gtVal))
-		}
-		return false
-	}
-
-	return false
+	return stringOperation(data, value, strings.HasPrefix)
 }
 
 func checkEndsWith(data, value any) bool {
-	switch val := data.(type) {
-	case string:
-		switch gtVal := value.(type) {
-		case string:
-			return strings.HasSuffix(strings.ToLower(val), strings.ToLower(gtVal))
-		}
-		return false
-	}
-
-	return false
+	return stringOperation(data, value, strings.HasSuffix)
 }
