@@ -40,7 +40,14 @@ var (
 		LesserThanEqualCount:  {},
 		GreaterThanEqualCount: {},
 	}
-	countOperators = []Operator{GreaterThanEqualCount, GreaterThanCount, LesserThanEqualCount, LesserThanCount, NotEqualCount, EqualCount}
+	countOperators = []Operator{
+		GreaterThanEqualCount,
+		GreaterThanCount,
+		LesserThanEqualCount,
+		LesserThanCount,
+		NotEqualCount,
+		EqualCount,
+	}
 )
 
 func Match[T any](item T, filter *Filter) bool {
@@ -90,7 +97,7 @@ func match[T any](item T, filter *Filter) bool {
 		if filter.Lookup.Data != nil {
 			lookupData = filter.Lookup.Data
 		} else if filter.Lookup.Handler != nil {
-			rs, err := filter.Lookup.Handler(filter.Lookup.FilterInHandler)
+			rs, err := filter.Lookup.Handler(filter.Lookup.HandlerCondition)
 			if err != nil {
 				return false
 			}

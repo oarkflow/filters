@@ -11,12 +11,12 @@ import (
 )
 
 type Lookup struct {
-	Data            any `json:"data"`
-	Handler         func(string) (any, error)
-	Type            string `json:"type"`
-	Source          string `json:"source"`
-	Condition       string `json:"condition"`
-	FilterInHandler string `json:"filter_in_handler"`
+	Data             any `json:"data"`
+	Handler          func(string) (any, error)
+	Type             string `json:"type"`
+	Source           string `json:"source"`
+	Condition        string `json:"condition"`
+	HandlerCondition string `json:"handler_condition"`
 }
 
 type Filter struct {
@@ -144,9 +144,17 @@ func MatchGroup[T any](item T, group *FilterGroup) bool {
 	case AND:
 		matched := true
 		for _, filter := range group.Filters {
-			if !Match(item, filter.(*Filter)) {
-				matched = false
-				break
+			switch filter := filter.(type) {
+			case *FilterGroup:
+				if !MatchGroup(item, filter) {
+					matched = false
+					break
+				}
+			case *Filter:
+				if !Match(item, filter) {
+					matched = false
+					break
+				}
 			}
 		}
 		if group.Reverse {
@@ -156,8 +164,17 @@ func MatchGroup[T any](item T, group *FilterGroup) bool {
 	case OR:
 		matched := false
 		for _, filter := range group.Filters {
-			if Match(item, filter.(*Filter)) {
-				matched = true
+			switch filter := filter.(type) {
+			case *FilterGroup:
+				if !MatchGroup(item, filter) {
+					matched = false
+					break
+				}
+			case *Filter:
+				if !Match(item, filter) {
+					matched = false
+					break
+				}
 			}
 		}
 		if group.Reverse {

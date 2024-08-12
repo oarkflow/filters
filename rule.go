@@ -14,11 +14,14 @@ type Condition interface {
 }
 
 type Rule struct {
-	Node      Condition
-	Operator  Boolean
-	Next      Condition
-	Result    bool
-	Condition string
+	Node          Condition `json:"node"`
+	Operator      Boolean   `json:"operator"`
+	Next          Condition `json:"next"`
+	Reverse       bool      `json:"reverse"`
+	Result        bool      `json:"result"`
+	Condition     string    `json:"condition"`
+	errorResponse ErrorResponse
+	callback      CallbackFn
 }
 
 func NewRule() *Rule {
@@ -29,45 +32,53 @@ func NewRuleNode(operator Boolean, condition Condition) *Rule {
 	return &Rule{Node: condition, Operator: operator}
 }
 
-func (s *Rule) Match(data any) bool {
-	matched := s.Node.Match(data)
-	if s.Operator == AND && !matched {
+func (r *Rule) Match(data any) bool {
+	matched := r.match(data)
+	if r.Reverse {
+		return !matched
+	}
+	return matched
+}
+
+func (r *Rule) match(data any) bool {
+	matched := r.Node.Match(data)
+	if r.Operator == AND && !matched {
 		return false
 	}
-	if s.Next == nil {
+	if r.Next == nil {
 		return matched
 	}
-	matchedNext := s.Next.Match(data)
-	if s.Operator == AND {
+	matchedNext := r.Next.Match(data)
+	if r.Operator == AND {
 		return matched && matchedNext
-	} else if s.Operator == OR {
+	} else if r.Operator == OR {
 		return matched || matchedNext
 	}
 	return matchedNext
 }
 
 // AddCondition method to add new conditions to the sequence
-func (s *Rule) AddCondition(operator Boolean, conditions ...Condition) {
+func (r *Rule) AddCondition(operator Boolean, reverse bool, conditions ...Condition) {
 	var condition Condition
 
 	if len(conditions) == 1 {
 		condition = conditions[0]
 	} else if len(conditions) > 1 {
-		condition = NewFilterGroup(operator, false, conditions...)
+		condition = NewFilterGroup(operator, reverse, conditions...)
 	}
 
-	if s.Node == nil {
-		s.Node = condition
-		s.Operator = operator
-	} else if s.Next == nil {
-		s.Next = NewRuleNode(operator, condition)
+	if r.Node == nil {
+		r.Node = condition
+		r.Operator = operator
+	} else if r.Next == nil {
+		r.Next = NewRuleNode(operator, condition)
 	} else {
-		nextSequence, ok := s.Next.(*Rule)
+		nextSequence, ok := r.Next.(*Rule)
 		if !ok {
-			nextSequence = NewRuleNode(operator, s.Next)
-			s.Next = nextSequence
+			nextSequence = NewRuleNode(operator, r.Next)
+			r.Next = nextSequence
 		}
-		nextSequence.AddCondition(operator, condition)
+		nextSequence.AddCondition(operator, reverse, condition)
 	}
 }
 
@@ -86,7 +97,7 @@ func ParseSQL(sql string) (*Rule, error) {
 	return filterGroup, nil
 }
 
-func FilterCondition[T any](data []T, expr *Rule) (result []T) {
+func FilterCondition[T any](data []T, expr Condition) (result []T) {
 	for _, d := range data {
 		if expr.Match(d) {
 			result = append(result, d)
