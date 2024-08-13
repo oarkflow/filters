@@ -42,7 +42,39 @@ var requestData = []byte(`
                             "procedure_qty": 1,
                             "billing_provider": null,
                             "secondary_provider": null
-                        },
+                        }
+                    ],
+                    "hcpcs": []
+                },
+                "fac": {
+                    "em": null,
+                    "special": [],
+                    "cpt": [],
+                    "hcpcs": []
+                },
+                "dx": {
+                    "pro": [],
+                    "fac": []
+                },
+                "cdi": {
+                    "pro": [],
+                    "fac": []
+                },
+                "notes": []
+            }
+        },
+        {
+            "dos": "2020/01/02",
+            "details": {
+                "pro": {
+                    "em": {
+                        "em_modifier1": "8",
+                        "em_downcode": false,
+                        "shared": false
+                    },
+                    "downcode": [],
+                    "special": [],
+                    "cpt": [
                         {
                             "procedure_num": "AN65450",
                             "procedure_qty": 1,
@@ -82,7 +114,7 @@ func main() {
 		panic(err)
 	}
 
-	filter := filters.NewFilter("coding.#.details.pro.cpt.#.procedure_num", filters.GreaterThanCount, 2)
+	filter := filters.NewFilter("coding.#.details.pro.cpt.#.procedure_num", filters.GreaterThanEqualCount, 1)
 	lookup := &filters.Lookup{
 		Data: []map[string]any{
 			{

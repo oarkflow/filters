@@ -62,12 +62,30 @@ func validatedCount(input string, lookupData any) bool {
 	return converted
 }
 
-func validateCount(op string, val any, lookupData, fieldValue any) bool {
+func processValidate(op string, val any, lookupData, fieldValue any) bool {
 	fieldValue, err := utils.FilterSlice(lookupData, fieldValue)
 	if err != nil {
 		return false
 	}
 	return validatedCount(fmt.Sprintf("len(data) %s %v", op, val), fieldValue)
+}
+
+func validateCount(op string, vat any, lookupData, fieldValue any) bool {
+	val := reflect.ValueOf(fieldValue)
+	if val.Kind() == reflect.Slice {
+		if val.Len() > 0 && val.Index(0).Elem().Kind() == reflect.Slice {
+			for i := 0; i < val.Len(); i++ {
+				innerSlice := val.Index(i)
+				if !processValidate(op, vat, lookupData, innerSlice.Interface()) {
+					return false
+				}
+			}
+			return true
+		} else {
+			return processValidate(op, vat, lookupData, fieldValue)
+		}
+	}
+	return false
 }
 
 func match[T any](item T, filter *Filter) bool {
