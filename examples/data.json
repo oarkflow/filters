@@ -1,0 +1,55 @@
+{
+	"patient_header": {
+		"disch_disp": null,
+		"transfer_dest": null,
+		"patient_status": null,
+		"admit_date": null,
+		"injury_date": null,
+		"lmp_date": null,
+		"status": "IN_PROGRESS",
+		"message": null,
+		"patient_dob": "2019-05-02",
+		"patient_sex": "M"
+	},
+	"coding": [
+		{
+			"dos": "2020/01/01",
+			"details": {
+				"pro": {
+					"em": {
+						"em_modifier1": "8",
+						"em_downcode": false,
+						"shared": false,
+						"em_level": "0"
+					},
+					"downcode": [],
+					"special": [],
+					"cpt": [
+						{
+							"procedure_num": "99281",
+							"procedure_qty": 1,
+							"billing_provider": null,
+							"secondary_provider": null
+						}
+					],
+					"hcpcs": []
+				},
+				"fac": {
+					"em": null,
+					"special": [],
+					"cpt": [],
+					"hcpcs": []
+				},
+				"dx": {
+					"pro": [],
+					"fac": []
+				},
+				"cdi": {
+					"pro": [],
+					"fac": []
+				},
+				"notes": []
+			}
+		}
+	]
+}

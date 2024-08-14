@@ -1,0 +1,76 @@
+{
+	"key": "deny-obs-codes-pro",
+	"level": "block",
+	"parent_key": "coding-documentation",
+	"rule": {
+		"groups": [
+			{
+				"left": {
+					"filters": [
+						{
+							"key": "check-greater-than-two-obs-in-cpt-pro",
+							"field": "coding.#.details.pro.cpt.#.procedure_num",
+							"group_by": "coding.#.dos",
+							"operator": "gec",
+							"value": "2",
+							"lookup": {
+								"data": [
+									{
+										"code": "99281"
+									},
+									{
+										"code": "99282"
+									}
+								],
+								"condition": "map(lookup, .code)"
+							}
+						}
+					],
+					"operator": "AND"
+				},
+				"operator": "OR",
+				"right": {
+					"filters": [
+						{
+							"key": "check-one-obs-in-cpt-pro",
+							"field": "coding.#.details.pro.cpt.#.procedure_num",
+							"operator": "eqc",
+							"value": "1",
+							"lookup": {
+								"data": [
+									{
+										"code": "99281"
+									},
+									{
+										"code": "99282"
+									}
+								],
+								"condition": "map(lookup, .code)"
+							}
+						},
+						{
+							"key": "check-obs-in-em-pro",
+							"field": "coding.#.details.pro.em.em_level",
+							"operator": "in",
+							"lookup": {
+								"data": [
+									{
+										"code": "99281"
+									},
+									{
+										"code": "99282"
+									}
+								],
+								"condition": "map(lookup, .code)"
+							}
+						}
+					],
+					"operator": "AND"
+				},
+				"reverse": true
+			}
+		],
+		"error_msg": "Multiple OBS codes found on same DOS. Please review and correct coding.",
+		"error_action": "DENY"
+	}
+}
