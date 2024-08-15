@@ -1,6 +1,8 @@
 package filters
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
 )
 
@@ -43,6 +45,22 @@ func (r *RuleRequest) Validate(data any, callbackFn ...CallbackFn) (any, error) 
 		return nil, errors.New("rule not provided")
 	}
 	return r.rule.Validate(data, callbackFn...)
+}
+
+// Scan implements the Scanner interface.
+// This is used to convert the JSONB type in the database into a rule.Rule struct.
+func (r *RuleRequest) Scan(value interface{}) error {
+	b, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion .([]byte) failed")
+	}
+	return json.Unmarshal(b, &r)
+}
+
+// Value implements the driver Valuer interface.
+// This is used to convert the rule.Rule struct into a JSONB type in the database.
+func (r RuleRequest) Value() (driver.Value, error) {
+	return json.Marshal(r)
 }
 
 func handleConditions(request *GroupRequest, getCondition func(string) *Filter) (conditions []Condition) {
