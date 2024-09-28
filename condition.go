@@ -127,6 +127,10 @@ func match[T any](item T, filter *Filter) bool {
 	}
 	if lookupData != nil && utils.IsSlice(lookupData) {
 		lookupLength, err := utils.GetSliceLength(lookupData)
+		fieldLength, _ := utils.GetSliceLength(fieldValue)
+		if utils.IsSlice(fieldValue) && fieldLength == 0 {
+			return false
+		}
 		if err != nil {
 			return false
 		}
