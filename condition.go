@@ -324,11 +324,7 @@ func stringOperation(data, value any, op func(string, string) bool) bool {
 }
 
 func checkIn(data, value any) bool {
-	sl, ok := convert.ToSlice(data, value)
-	if !ok {
-		return false
-	}
-	return utils.Contains(sl, data)
+	return utils.Contains(data, value)
 }
 
 func checkNotIn(data, value any) bool {
