@@ -2,12 +2,12 @@ package filters
 
 import (
 	"fmt"
+	"github.com/oarkflow/dipper"
 	"reflect"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/oarkflow/dipper"
 	"github.com/oarkflow/expr"
 
 	"github.com/oarkflow/convert"
@@ -97,9 +97,18 @@ func match[T any](item T, filter *Filter) bool {
 	if filter.err != nil {
 		return false
 	}
-	fieldValue, err := dipper.Get(item, filter.Field)
-	if err != nil {
-		return false
+	var fieldValue any
+	var err error
+	if strings.Contains(filter.Field, "{{") {
+		fieldValue, err = resolveFilterField(item, filter.Field)
+		if err != nil {
+			return false
+		}
+	} else {
+		fieldValue, err = dipper.Get(item, filter.Field)
+		if err != nil {
+			return false
+		}
 	}
 	val, err := resolveFilterValue(item, filter.Value)
 	if err != nil {
@@ -220,15 +229,27 @@ func match[T any](item T, filter *Filter) bool {
 	return false
 }
 
+func resolveString(item any, v string) (any, error) {
+	if strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}") {
+		referenceField := strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(v, "}}"), "{{"))
+		return expr.Eval(referenceField, item)
+	}
+	return v, nil
+}
+
+func resolveFilterField(item, field any) (any, error) {
+	switch v := field.(type) {
+	case string:
+		return resolveString(item, v)
+	}
+	return field, nil
+}
+
 // Resolve filter value that may reference another field
 func resolveFilterValue(fieldVal, value any) (any, error) {
 	switch v := value.(type) {
 	case string:
-		if strings.HasPrefix(v, "{{") && strings.HasSuffix(v, "}}") {
-			referenceField := strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(v, "}}"), "{{"))
-			return expr.Eval(referenceField, fieldVal)
-		}
-		return v, nil
+		return resolveString(fieldVal, v)
 	case []string:
 		var resolvedValues []any
 		for _, val := range v {

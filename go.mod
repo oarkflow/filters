@@ -3,7 +3,7 @@ module github.com/oarkflow/filters
 go 1.22.3
 
 require (
-	github.com/oarkflow/convert v0.0.1
+	github.com/oarkflow/convert v0.0.2
 	github.com/oarkflow/date v0.0.4
 	github.com/oarkflow/dipper v0.0.6
 	github.com/oarkflow/expr v0.0.11
