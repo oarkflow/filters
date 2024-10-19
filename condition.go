@@ -345,12 +345,21 @@ func stringOperation(data, value any, op func(string, string) bool) bool {
 }
 
 func checkIn(data, value any) bool {
+	isValueSlice, isDataSlice := false, false
 	if reflect.TypeOf(data).Kind() == reflect.Slice {
-		return utils.Contains(data, value)
+		isDataSlice = true
+		data = utils.Flatten(data)
 	}
-	sl, ok := convert.ToSlice(data, value)
+	if reflect.TypeOf(value).Kind() == reflect.Slice {
+		isValueSlice = true
+		value = utils.Flatten(value)
+	}
+	sl, ok := convert.To(data, value)
 	if !ok {
 		return false
+	}
+	if isValueSlice && isDataSlice {
+		return utils.ItemExists(data, value)
 	}
 	return utils.Contains(sl, data)
 }

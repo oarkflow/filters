@@ -254,6 +254,37 @@ func Contains(sl, data any) bool {
 
 	return false
 }
+func Flatten(input any) []any {
+	var result []any
+	v := reflect.ValueOf(input)
+	if v.Kind() == reflect.Slice {
+		for i := 0; i < v.Len(); i++ {
+			result = append(result, Flatten(v.Index(i).Interface())...)
+		}
+	} else {
+		result = append(result, input)
+	}
+	return result
+}
+
+// ItemExists - Generic function to check if any item in slice1 exists in slice2
+func ItemExists(slice1, slice2 any) bool {
+	v1 := reflect.ValueOf(slice1)
+	v2 := reflect.ValueOf(slice2)
+	if v1.Kind() != reflect.Slice || v2.Kind() != reflect.Slice {
+		panic("both arguments must be slices")
+	}
+	lookup := make(map[interface{}]bool)
+	for i := 0; i < v2.Len(); i++ {
+		lookup[v2.Index(i).Interface()] = true
+	}
+	for i := 0; i < v1.Len(); i++ {
+		if lookup[v1.Index(i).Interface()] {
+			return true
+		}
+	}
+	return false
+}
 
 func BuiltinAge(params ...any) (any, error) {
 	if len(params) != 1 {
