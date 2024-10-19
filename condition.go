@@ -144,7 +144,7 @@ func match[T any](item T, filter *Filter) bool {
 			return false
 		}
 		if lookupLength == 0 {
-			return true
+			return false
 		}
 	}
 	if !slices.Contains(countOperators, filter.Operator) && lookupData != nil {
