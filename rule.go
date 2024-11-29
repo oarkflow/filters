@@ -60,16 +60,21 @@ func (r *Rule) match(data any) bool {
 // AddCondition method to add new conditions to the sequence
 func (r *Rule) AddCondition(operator Boolean, reverse bool, conditions ...Condition) {
 	var condition Condition
-
+	hasReverse := false
 	if len(conditions) == 1 {
 		condition = conditions[0]
 	} else if len(conditions) > 1 {
+		hasReverse = true
 		condition = NewFilterGroup(operator, reverse, conditions...)
 	}
 
 	if r.Node == nil {
 		r.Node = condition
 		r.Operator = operator
+		if !hasReverse {
+			r.Reverse = reverse
+		}
+		r.Reverse = reverse
 	} else if r.Next == nil {
 		r.Next = NewRuleNode(operator, condition)
 	} else {

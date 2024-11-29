@@ -10,4 +10,4 @@ require (
 	github.com/oarkflow/xid v1.2.5
 )
 
-require github.com/oarkflow/json v0.0.13 // indirect
+require github.com/oarkflow/json v0.0.14 // indirect
