@@ -359,7 +359,7 @@ func checkIn(data, value any) bool {
 		return false
 	}
 	if isValueSlice && isDataSlice {
-		return utils.ItemExists(data, value)
+		return utils.ItemExists(sl, data)
 	}
 	return utils.Contains(sl, data)
 }
