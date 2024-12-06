@@ -2,15 +2,14 @@ package filters
 
 import (
 	"fmt"
-	"github.com/oarkflow/dipper"
 	"reflect"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/oarkflow/expr"
-
 	"github.com/oarkflow/convert"
+	"github.com/oarkflow/dipper"
+	"github.com/oarkflow/expr"
 
 	"github.com/oarkflow/filters/utils"
 )

@@ -14,20 +14,23 @@ func (group *FilterGroup) Match(data any) bool {
 	return MatchGroup(data, group)
 }
 
-func ApplyGroup[T any](data []T, filterGroups ...*FilterGroup) (result []T) {
-	for _, item := range data {
+func ApplyGroup[T any](collection []T, filterGroups ...*FilterGroup) []T {
+	var position, size = 0, len(collection)
+	for i := 0; i < size; i++ {
 		matches := true
 		for _, group := range filterGroups {
-			if !MatchGroup(item, group) {
+			if !MatchGroup(collection[i], group) {
 				matches = false
 				break
 			}
 		}
 		if matches {
-			result = append(result, item)
+			collection[position] = collection[i]
+			position++
 		}
 	}
-	return
+
+	return collection[:position]
 }
 
 func MatchGroup[T any](item T, group *FilterGroup) bool {
