@@ -74,7 +74,6 @@ func (r *Rule) AddCondition(operator Boolean, reverse bool, conditions ...Condit
 		if !hasReverse {
 			r.Reverse = reverse
 		}
-		r.Reverse = reverse
 	} else if r.Next == nil {
 		r.Next = NewRuleNode(operator, condition)
 	} else {
