@@ -40,15 +40,12 @@ func main() {
 			{ClientRef: nil, WorkItemID: 4},
 		},
 	}
-	workItemID := 4
+	workItemID := []any{4}
 	env := map[string]interface{}{
 		"work_item_id": workItemID,
 		"data":         data,
 	}
-	// result, err := expr.Eval("work_item_id in map(filter(data.WorkItemClientRefs, .ClientRef == null || .ClientRef == ''), .WorkItemID)", env)
-	// result, err := expr.Eval("work_item_id in map(filter(data.WorkItemClientRefs, .ClientRef == null || .ClientRef == ''), .WorkItemID)", env)
-	// result, err := expr.Eval("filter(data.WorkItemClientRefs, .ClientRef == null || .ClientRef == '')", env)
-	result, err := expr.Eval("len(data.WorkItemClientRefs)", env)
+	result, err := expr.Eval("map(filter(data.WorkItemClientRefs, .ClientRef == null || .ClientRef == ''), .WorkItemID)", env)
 	if err != nil {
 		fmt.Printf("Error running expression: %v\n", err)
 		return

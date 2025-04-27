@@ -10,7 +10,6 @@
 						{
 							"key": "check-greater-than-two-obs-in-cpt-pro",
 							"field": "coding.#.details.pro.cpt.#.procedure_num",
-							"group_by": "coding.#.dos",
 							"operator": "gec",
 							"value": "2",
 							"lookup": {

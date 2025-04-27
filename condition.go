@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/oarkflow/convert"
+	convert "github.com/oarkflow/convert/v2"
 	"github.com/oarkflow/dipper"
 	"github.com/oarkflow/expr"
 
@@ -54,8 +54,8 @@ func validatedCount(input string, lookupData any) bool {
 	if err != nil {
 		return false
 	}
-	converted, done := convert.ToBool(rs)
-	if !done {
+	converted, err := convert.ToBool(rs)
+	if err != nil {
 		return false
 	}
 	return converted
@@ -281,15 +281,15 @@ func checkComparison(val, value any, isEqual bool) bool {
 	var comparisonResult bool
 	switch val := val.(type) {
 	case string:
-		data, ok := convert.ToString(value)
-		if !ok {
-			return ok
+		data, err := convert.ToString(value)
+		if err != nil {
+			return false
 		}
 		comparisonResult = strings.EqualFold(val, data)
 	default:
-		data, ok := convert.To(val, value)
-		if !ok {
-			return ok
+		data, err := convert.To(val, value)
+		if err != nil {
+			return false
 		}
 		comparisonResult = val == data
 	}
@@ -308,19 +308,35 @@ func checkNeq(val, value any) bool {
 }
 
 func checkGt(data, value any) bool {
-	return convert.Compare(data, value) > 0
+	val, err := convert.Compare(data, value)
+	if err != nil {
+		return false
+	}
+	return val > 0
 }
 
 func checkLt(data, value any) bool {
-	return convert.Compare(data, value) < 0
+	val, err := convert.Compare(data, value)
+	if err != nil {
+		return false
+	}
+	return val < 0
 }
 
 func checkGte(data, value any) bool {
-	return convert.Compare(data, value) >= 0
+	val, err := convert.Compare(data, value)
+	if err != nil {
+		return false
+	}
+	return val >= 0
 }
 
 func checkLte(data, value any) bool {
-	return convert.Compare(data, value) <= 0
+	val, err := convert.Compare(data, value)
+	if err != nil {
+		return false
+	}
+	return val <= 0
 }
 
 func checkBetween(data, value any) bool {
@@ -353,8 +369,8 @@ func checkIn(data, value any) bool {
 		isValueSlice = true
 		value = utils.Flatten(value)
 	}
-	sl, ok := convert.To(data, value)
-	if !ok {
+	sl, err := convert.To(data, value)
+	if err != nil {
 		return false
 	}
 	if isValueSlice && isDataSlice {
