@@ -366,6 +366,8 @@ func toOperator(sqlOperator string) Operator {
 		return Between
 	case "IN":
 		return In
+	case "NOT IN":
+		return NotIn
 	case "IS NULL":
 		return IsNull
 	case "IS NOT NULL":

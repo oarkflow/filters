@@ -38,6 +38,17 @@ var (
 		GreaterThanCount:      {},
 		LesserThanEqualCount:  {},
 		GreaterThanEqualCount: {},
+		NotIn:                 {},
+		IsZero:                {},
+		NotZero:               {},
+		IsNull:                {},
+		NotNull:               {},
+		ContainsCS:            {},
+		NotContainsCS:         {},
+		StartsWithCS:          {},
+		NotStartsWithCS:       {},
+		EndsWithCS:            {},
+		NotEndsWithCS:         {},
 	}
 	countOperators = []Operator{
 		GreaterThanEqualCount,
@@ -216,14 +227,32 @@ func match[T any](item T, filter *Filter) bool {
 		return !checkStartsWith(fieldValue, val)
 	case NotEndsWith:
 		return !checkEndsWith(fieldValue, val)
+	case ContainsCS:
+		return checkContainsCS(fieldValue, val)
+	case NotContainsCS:
+		return checkNotContainsCS(fieldValue, val)
+	case StartsWithCS:
+		return checkStartsWithCS(fieldValue, val)
+	case NotStartsWithCS:
+		return checkNotStartsWithCS(fieldValue, val)
+	case EndsWithCS:
+		return checkEndsWithCS(fieldValue, val)
+	case NotEndsWithCS:
+		return checkNotEndsWithCS(fieldValue, val)
 	case IsZero:
+		if fieldValue == nil {
+			return false
+		}
 		return reflect.ValueOf(fieldValue).IsZero()
 	case NotZero:
+		if fieldValue == nil {
+			return true
+		}
 		return !reflect.ValueOf(fieldValue).IsZero()
 	case IsNull:
-		return reflect.ValueOf(fieldValue).IsNil()
+		return fieldValue == nil
 	case NotNull:
-		return !reflect.ValueOf(fieldValue).IsNil()
+		return fieldValue != nil
 	}
 	return false
 }
@@ -286,6 +315,12 @@ func checkComparison(val, value any, isEqual bool) bool {
 			return false
 		}
 		comparisonResult = strings.EqualFold(val, data)
+	case bool:
+		data, err := convert.ToString(value)
+		if err != nil {
+			return false
+		}
+		comparisonResult = val == (strings.ToLower(data) == "true")
 	default:
 		data, err := convert.To(val, value)
 		if err != nil {
@@ -397,4 +432,38 @@ func checkStartsWith(data, value any) bool {
 
 func checkEndsWith(data, value any) bool {
 	return stringOperation(data, value, strings.HasSuffix)
+}
+
+// Case-sensitive versions
+func stringOperationCS(data, value any, op func(string, string) bool) bool {
+	strData, ok1 := data.(string)
+	strValue, ok2 := value.(string)
+	if !ok1 || !ok2 {
+		return false
+	}
+	return op(strData, strValue)
+}
+
+func checkContainsCS(data, value any) bool {
+	return stringOperationCS(data, value, strings.Contains)
+}
+
+func checkNotContainsCS(data, value any) bool {
+	return !checkContainsCS(data, value)
+}
+
+func checkStartsWithCS(data, value any) bool {
+	return stringOperationCS(data, value, strings.HasPrefix)
+}
+
+func checkNotStartsWithCS(data, value any) bool {
+	return !checkStartsWithCS(data, value)
+}
+
+func checkEndsWithCS(data, value any) bool {
+	return stringOperationCS(data, value, strings.HasSuffix)
+}
+
+func checkNotEndsWithCS(data, value any) bool {
+	return !checkEndsWithCS(data, value)
 }

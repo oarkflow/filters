@@ -106,9 +106,9 @@ func parseNotLike(p *parser, field string) (*Filter, Boolean, int, error) {
 	case strings.HasPrefix(tok.value, "%") && strings.HasSuffix(tok.value, "%"):
 		return NewFilter(field, NotContains, val), "", p.pos, nil
 	case strings.HasPrefix(tok.value, "%"):
-		return &Filter{Field: field, Operator: EndsWith, Value: val, Reverse: true}, "", p.pos, nil
+		return NewFilter(field, NotEndsWith, val), "", p.pos, nil
 	case strings.HasSuffix(tok.value, "%"):
-		return &Filter{Field: field, Operator: StartsWith, Value: val, Reverse: true}, "", p.pos, nil
+		return NewFilter(field, NotStartsWith, val), "", p.pos, nil
 	}
 	return nil, "", 0, errors.New("unexpected LIKE pattern")
 }

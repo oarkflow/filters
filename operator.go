@@ -36,4 +36,10 @@ const (
 	IsZero                Operator = "izero"
 	IsNull                Operator = "null"
 	NotNull               Operator = "nnull"
+	ContainsCS            Operator = "contains_cs"
+	NotContainsCS         Operator = "ncontains_cs"
+	StartsWithCS          Operator = "startswith_cs"
+	NotStartsWithCS       Operator = "nstartswith_cs"
+	EndsWithCS            Operator = "endswith_cs"
+	NotEndsWithCS         Operator = "nendswith_cs"
 )
